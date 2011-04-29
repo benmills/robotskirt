@@ -1,0 +1,13 @@
+{ "name": "robotskirt"
+, "description": "A node wrapper for the awesome C markdown parsing library, upskirt."
+, "tags": ["upskirt", "markdown", "mkd"]
+, "author" : "Ben Mills <ben@bmdev.org>"
+, "version": "0.1.0"
+, "lib": "./build/default"
+, "main": "./build/default/robotskirt"
+, "scripts": { "install": "node-waf configure build" }
+, "repository" : { "type" : "git"
+                 , "url" : "http://github.com/benmills/robotskirt.git"
+                 }
+, "bugs" : { "web" : "http://github.com/benmills/robotskirt/issues" }
+}
