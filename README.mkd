@@ -2,3 +2,17 @@ Robotskirt
 =============
 
 Robotskirt is a simple node wrapper for the upskirt markdown parser.
+
+Install
+-------------
+
+```bash
+npm install robotskirt
+```
+
+Usage
+------------
+```javascript
+var markdown = require('robotskirt');
+var html = markdown.toHtml('# Hello World')
+```
