@@ -1,18 +1,41 @@
 Robotskirt
 =============
 
-Robotskirt is a simple node wrapper for the upskirt markdown parser.
+Robotskirt is a simple node wrapper for the (upskirt)[https://github.com/tanoku/upskirt] markdown parser. It was inspred by the redcarpet gem (released by github)[https://github.com/blog/832-rolling-out-the-redcarpet]. Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.
 
 Install
 -------------
+
+The best way to install robotskirt is by using [npm](https://github.com/isaacs/npm). If you want to install it globally, remember to include the -g flag.
 
 ```bash
 npm install robotskirt
 ```
 
+If you would like to compile it, you can use node's WAF wapper. Read more about how node C/C++ addons work in the [node docs](http://nodejs.org/docs/v0.4.7/api/addons.html).
+
+```bash
+node-waf configure build
+````
+
 Usage
 ------------
+
+Currently robotskirt has one function, toHtml, that will take a string of markdown and return HTML. 
+
 ```javascript
 var markdown = require('robotskirt');
 var html = markdown.toHtml('# Hello World')
+```
+
+A common use case might be opening a markdown file and then parsing it into HTML.
+
+```javascript
+var fs = require('fs');                       
+var sys = require('sys');                     
+var markdown = require('robotskirt');         
+                                              
+fs.readFile('test.mkd', function (err, data) {
+  sys.puts(markdown.toHtml(data));            
+});                                           
 ```
