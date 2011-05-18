@@ -1,16 +1,24 @@
-// addons/functions/v0.1/func.cc
 #include <v8.h>
 #include <node.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+using namespace std;
+using namespace node;
+using namespace v8;
 
 extern "C" {
   #include"markdown.h"
   #include"xhtml.h"
 }
 
+static Handle<Value> ToHtmlAsync (const Arguments&);
+static int ToHtml (eio_req *);
+static int ToHtml_After (eio_req *);
+
 #define READ_UNIT 1024
 #define OUTPUT_UNIT 64
-
-using namespace v8;  
  
 extern "C" char *markdown(char *text)
 {
@@ -33,7 +41,6 @@ extern "C" char *markdown(char *text)
 
   /* writing the result to stdout */
   char *output = ob->data;
-  /*fwrite(ob->data, 1, ob->size, stdout);*/
 
   /* cleanup */
   bufrelease(ib);
@@ -42,7 +49,58 @@ extern "C" char *markdown(char *text)
   return output;
 }
 
-static Handle<Value> ToHtml(const Arguments& args) {
+struct request {
+  char *in;
+  char *out;
+  Persistent<Function> cb;
+};
+
+static Handle<Value> ToHtmlAsync(const Arguments& args) {
+  HandleScope scope;
+  const char *usage = "usage: toHtml(markdown_string, callback)";
+  if (args.Length() != 2) {
+    return ThrowException(Exception::Error(String::New(usage)));
+  }
+
+  String::Utf8Value in(args[0]);
+  Local<Function> cb = Local<Function>::Cast(args[1]);
+
+  request *sr = (request *)
+  malloc(sizeof(struct request) + in.length() + 1);
+
+  sr->cb = Persistent<Function>::New(cb);
+  sr->in = (char*)*in;
+
+  eio_custom(ToHtml, EIO_PRI_DEFAULT, ToHtml_After, sr);
+  ev_ref(EV_DEFAULT_UC);
+  return Undefined();
+}
+
+static int ToHtml_After(eio_req *req) {
+  HandleScope scope;
+  ev_unref(EV_DEFAULT_UC);
+  struct request * sr = (struct request *)req->data;
+  Local<Value> argv[1];
+
+  argv[0] = String::New(sr->out);
+  TryCatch try_catch;
+  sr->cb->Call(Context::GetCurrent()->Global(), 1, argv);
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+  sr->cb.Dispose();
+  free(sr);
+  return 0;
+}
+
+static int ToHtml(eio_req *req) {
+  struct request *sr = (struct request *)req->data;
+  char *t = markdown(sr->in);
+  sr->out = t;
+  return 0;
+}
+
+tatic Handle<Value> ToHtmlSync(const Arguments& args) {
   HandleScope scope;
  
   if (args.Length() < 1) {
@@ -61,6 +119,7 @@ extern "C" void
 init (Handle<Object> target)
 {
     HandleScope scope;
-    target->Set(String::New("version"), String::New("0.1"));
-    NODE_SET_METHOD(target, "toHtml", ToHtml);
+    target->Set(String::New("version"), String::New("0.2"));
+    NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
+    NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
 }
