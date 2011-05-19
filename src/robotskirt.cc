@@ -66,6 +66,7 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
   Local<Function> cb = Local<Function>::Cast(args[1]);
   request *sr = (request *) malloc(sizeof(struct request));
   sr->cb = Persistent<Function>::New(cb);
+  sr->in = (char *) malloc(in.length() + 1);
   strncpy(sr->in, *in, in.length() + 1);
   sr->out = NULL;
 
@@ -80,11 +81,10 @@ static int ToHtml(eio_req *req) {
   return 0;
 }
 
-
 static int ToHtml_After(eio_req *req) {
   HandleScope scope;
   ev_unref(EV_DEFAULT_UC);
-  struct request * sr = (struct request *)req->data;
+  struct request *sr = (struct request *)req->data;
   Local<Value> argv[1];
 
   argv[0] = String::New(sr->out);
@@ -94,11 +94,12 @@ static int ToHtml_After(eio_req *req) {
     FatalException(try_catch);
   }
   sr->cb.Dispose();
+  free(sr->in);
   free(sr);
   return 0;
 }
 
-static Handle<Value> ToHtmlSync(const Arguments& args) {
+static Handle<Value> ToHtmlSync(const Arguments &args) {
   HandleScope scope;
  
   if (args.Length() < 1) {
@@ -115,6 +116,7 @@ static Handle<Value> ToHtmlSync(const Arguments& args) {
  
 extern "C" void init (Handle<Object> target) {
     HandleScope scope;
+    
     target->Set(String::New("version"), String::New("0.2"));
     NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
     NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
