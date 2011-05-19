@@ -124,7 +124,7 @@ extern "C" void init (Handle<Object> target) {
     char upsver[10];
     sprintf(upsver, "%c.%c.%c", ver_major, ver_minor, ver_revision);
 
-    target->Set(String::New("version"), String::New("0.2"));
+    target->Set(String::New("version"), String::New("0.2.0"));
     target->Set(String::New("upskirtVersion"), String::New(upsver));
     NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
     NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
