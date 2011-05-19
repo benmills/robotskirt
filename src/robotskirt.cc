@@ -20,7 +20,7 @@ static int ToHtml_After (eio_req *);
 #define READ_UNIT 1024
 #define OUTPUT_UNIT 64
  
-extern "C" char *markdown(char *text)
+char *markdown(char *text)
 {
   struct buf  *ib, *ob;
   struct mkd_renderer renderer;
@@ -50,9 +50,9 @@ extern "C" char *markdown(char *text)
 }
 
 struct request {
-  char *in;
-  char *out;
   Persistent<Function> cb;
+  char *out;
+  char *in;
 };
 
 static Handle<Value> ToHtmlAsync(const Arguments& args) {
@@ -64,17 +64,22 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
 
   String::Utf8Value in(args[0]);
   Local<Function> cb = Local<Function>::Cast(args[1]);
-
-  request *sr = (request *)
-  malloc(sizeof(struct request) + in.length() + 1);
-
+  request *sr = (request *) malloc(sizeof(struct request));
   sr->cb = Persistent<Function>::New(cb);
-  sr->in = (char*)*in;
+  strncpy(sr->in, *in, in.length() + 1);
+  sr->out = NULL;
 
   eio_custom(ToHtml, EIO_PRI_DEFAULT, ToHtml_After, sr);
   ev_ref(EV_DEFAULT_UC);
   return Undefined();
 }
+
+static int ToHtml(eio_req *req) {
+  struct request *sr = (struct request *)req->data;
+  sr->out = markdown(sr->in);
+  return 0;
+}
+
 
 static int ToHtml_After(eio_req *req) {
   HandleScope scope;
@@ -93,14 +98,7 @@ static int ToHtml_After(eio_req *req) {
   return 0;
 }
 
-static int ToHtml(eio_req *req) {
-  struct request *sr = (struct request *)req->data;
-  char *t = markdown(sr->in);
-  sr->out = t;
-  return 0;
-}
-
-tatic Handle<Value> ToHtmlSync(const Arguments& args) {
+static Handle<Value> ToHtmlSync(const Arguments& args) {
   HandleScope scope;
  
   if (args.Length() < 1) {
@@ -115,9 +113,7 @@ tatic Handle<Value> ToHtmlSync(const Arguments& args) {
   return scope.Close(md);
 }
  
-extern "C" void
-init (Handle<Object> target)
-{
+extern "C" void init (Handle<Object> target) {
     HandleScope scope;
     target->Set(String::New("version"), String::New("0.2"));
     NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);

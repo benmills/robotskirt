@@ -10,8 +10,6 @@ def configure(conf):
   conf.check_tool("compiler_cxx")
   conf.check_tool("compiler_cc")
   conf.check_tool("node_addon")
-  #conf.env.append_value('CCFLAGS', ['-fstack-protector', '-O', '-g', '-march=native'])
-  conf.env.append_value('CCFLAGS', ['-O3'])
  
 def build(bld):
   upskirt = bld.new_task_gen("cc", "shlib")
@@ -25,8 +23,7 @@ def build(bld):
   upskirt.target = "upskirt"
 
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+  obj.cxxflags = ["-D_FILE_OFFSET_BITS=64", "-D_LARGEFILE_SOURCE"]
   obj.target = 'robotskirt'
-  #obj.linkflags = "../lib/libupskirt.so"
-  obj.includes = "upskirt"
   obj.add_objects = "upskirt"
   obj.source = 'src/robotskirt.cc'
