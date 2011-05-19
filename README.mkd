@@ -50,3 +50,10 @@ If you would like to parse your markdown synchronously you can use the `toHtmlSy
 ```javascript
 var html = markdown.toHtmlSync("*sync!*");
 ```
+
+Special Thanks
+------------
+
+* [Phinze](https://github.com/phinze) 
+
+
