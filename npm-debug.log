@@ -1,0 +1,654 @@
+info it worked if it ends with ok
+verbose cli [ 'node', '/usr/local/bin/npm', 'publish' ]
+info using npm@1.0.6
+info using node@v0.4.7
+verbose /usr/local/bin/node node symlink
+verbose config file /Users/benmills/.npmrc
+verbose config file /usr/local/etc/npmrc
+verbose publish [ '.' ]
+verbose has wscript [ undefined,
+verbose has wscript   { file: 'package.json',
+verbose has wscript     contributors: false,
+verbose has wscript     serverjs: false,
+verbose has wscript     wscript: true } ]
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: { install: 'node-waf configure build' },
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   _defaultsLoaded: true }
+verbose caching package.json
+verbose loadDefaults robotskirt@0.1.0
+verbose pack /Users/benmills/code/robotskirt /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/tmp.tgz
+verbose has wscript [ undefined,
+verbose has wscript   { file: '/Users/benmills/code/robotskirt/package.json',
+verbose has wscript     contributors: false,
+verbose has wscript     serverjs: false,
+verbose has wscript     wscript: true } ]
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: { install: 'node-waf configure build' },
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   _defaultsLoaded: true,
+silly testEngine   path: '/Users/benmills/code/robotskirt' }
+verbose caching /Users/benmills/code/robotskirt/package.json
+verbose loadDefaults robotskirt@0.1.0
+verbose mkdir done: /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154 755
+verbose mkdir'ed /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154
+verbose tar about to write tar and gzip it.
+silly tar args [ '-cvf',
+silly tar args   '-',
+silly tar args   'robotskirt/.gitignore',
+silly tar args   'robotskirt/.gitmodules',
+silly tar args   'robotskirt/example.js',
+silly tar args   'robotskirt/package.json',
+silly tar args   'robotskirt/README.mkd',
+silly tar args   'robotskirt/wscript',
+silly tar args   'robotskirt/src/array.c',
+silly tar args   'robotskirt/src/array.h',
+silly tar args   'robotskirt/src/array.o',
+silly tar args   'robotskirt/src/buffer.c',
+silly tar args   'robotskirt/src/buffer.h',
+silly tar args   'robotskirt/src/buffer.o',
+silly tar args   'robotskirt/src/markdown.c',
+silly tar args   'robotskirt/src/markdown.h',
+silly tar args   'robotskirt/src/markdown.o',
+silly tar args   'robotskirt/src/robotskirt.cc',
+silly tar args   'robotskirt/src/xhtml.c',
+silly tar args   'robotskirt/src/xhtml.h',
+silly tar args   'robotskirt/src/xhtml.o',
+silly tar args   'robotskirt/upskirt/.gitignore',
+silly tar args   'robotskirt/upskirt/Makefile',
+silly tar args   'robotskirt/upskirt/README.markdown',
+silly tar args   'robotskirt/upskirt/examples/smartypants.c',
+silly tar args   'robotskirt/upskirt/examples/upskirt.c',
+silly tar args   'robotskirt/upskirt/render/html.c',
+silly tar args   'robotskirt/upskirt/render/html.h',
+silly tar args   'robotskirt/upskirt/render/html_smartypants.c',
+silly tar args   'robotskirt/upskirt/src/array.c',
+silly tar args   'robotskirt/upskirt/src/array.h',
+silly tar args   'robotskirt/upskirt/src/buffer.c',
+silly tar args   'robotskirt/upskirt/src/buffer.h',
+silly tar args   'robotskirt/upskirt/src/markdown.c',
+silly tar args   'robotskirt/upskirt/src/markdown.h' ]
+verbose success tar -cvf - <file list elided>
+verbose success gzip "--stdout"
+verbose mkdir done: /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm 755
+verbose unpack_ uid, gid [ undefined, undefined ]
+verbose unpackTarget /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package
+silly gunzTarPerm modes [ '755', '644' ]
+verbose success gzip "--decompress" "--stdout" "/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/tmp.tgz"
+verbose success tar "-mvxpf" "-" "--no-same-owner" "-C" "/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm"
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/.gitignore
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/.gitmodules
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/example.js
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/package.json
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/README.mkd
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/wscript
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/array.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/array.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/array.o
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/buffer.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/buffer.o
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/buffer.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/markdown.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/markdown.o
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/markdown.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/robotskirt.cc
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/xhtml.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/xhtml.o
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/src/xhtml.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/.gitignore
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/Makefile
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/README.markdown
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/examples/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/examples/upskirt.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/examples/smartypants.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/render/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/render/html.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/render/html_smartypants.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/render/html.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/array.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/array.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/buffer.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/buffer.h
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/markdown.c
+silly asyncMap in gTP /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt/upskirt/src/markdown.h
+verbose gunzed /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt
+verbose rm'ed /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package
+verbose renamed [ '/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/___package.npm/robotskirt',
+verbose renamed   '/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package' ]
+verbose has wscript [ undefined,
+verbose has wscript   { file: '/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package/package.json',
+verbose has wscript     contributors: false,
+verbose has wscript     serverjs: false,
+verbose has wscript     wscript: true } ]
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: { install: 'node-waf configure build' },
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   _defaultsLoaded: true,
+silly testEngine   path: '/var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package' }
+verbose caching /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package/package.json
+verbose loadDefaults robotskirt@0.1.0
+verbose tarball contents [ 'package' ]
+verbose from cache /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package/package.json
+verbose pack /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package /Users/benmills/.npm/robotskirt/0.1.0/package.tgz
+verbose from cache /var/folders/w2/w2T5robtHny+pM4PQ5K+ik+++TI/-Tmp-/npm-1305787472119/1305787472119-0.2834757757373154/contents/package/package.json
+verbose mkdir done: /Users/benmills/.npm/robotskirt/0.1.0 755
+verbose mkdir'ed /Users/benmills/.npm/robotskirt/0.1.0
+verbose tar about to write tar and gzip it.
+silly tar args [ '-cvf',
+silly tar args   '-',
+silly tar args   'package/.gitignore',
+silly tar args   'package/.gitmodules',
+silly tar args   'package/example.js',
+silly tar args   'package/package.json',
+silly tar args   'package/README.mkd',
+silly tar args   'package/wscript',
+silly tar args   'package/src/array.c',
+silly tar args   'package/src/array.h',
+silly tar args   'package/src/array.o',
+silly tar args   'package/src/buffer.c',
+silly tar args   'package/src/buffer.h',
+silly tar args   'package/src/buffer.o',
+silly tar args   'package/src/markdown.h',
+silly tar args   'package/src/markdown.c',
+silly tar args   'package/src/markdown.o',
+silly tar args   'package/src/robotskirt.cc',
+silly tar args   'package/src/xhtml.c',
+silly tar args   'package/src/xhtml.h',
+silly tar args   'package/src/xhtml.o',
+silly tar args   'package/upskirt/.gitignore',
+silly tar args   'package/upskirt/Makefile',
+silly tar args   'package/upskirt/README.markdown',
+silly tar args   'package/upskirt/examples/smartypants.c',
+silly tar args   'package/upskirt/examples/upskirt.c',
+silly tar args   'package/upskirt/render/html.c',
+silly tar args   'package/upskirt/render/html.h',
+silly tar args   'package/upskirt/render/html_smartypants.c',
+silly tar args   'package/upskirt/src/array.c',
+silly tar args   'package/upskirt/src/array.h',
+silly tar args   'package/upskirt/src/buffer.c',
+silly tar args   'package/upskirt/src/buffer.h',
+silly tar args   'package/upskirt/src/markdown.c',
+silly tar args   'package/upskirt/src/markdown.h' ]
+verbose success tar -cvf - <file list elided>
+verbose success gzip "--stdout"
+verbose mkdir done: /Users/benmills/.npm/robotskirt/0.1.0/___package.npm 755
+verbose unpack_ uid, gid [ undefined, undefined ]
+verbose unpackTarget /Users/benmills/.npm/robotskirt/0.1.0/package
+silly gunzTarPerm modes [ '755', '644' ]
+verbose success gzip "--decompress" "--stdout" "/Users/benmills/.npm/robotskirt/0.1.0/package.tgz"
+verbose success tar "-mvxpf" "-" "--no-same-owner" "-C" "/Users/benmills/.npm/robotskirt/0.1.0/___package.npm"
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/.gitmodules
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/example.js
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/package.json
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/README.mkd
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/wscript
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/robotskirt.cc
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/Makefile
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/README.markdown
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/upskirt.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html_smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/buffer.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/markdown.h
+verbose gunzed /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package
+verbose rm'ed /Users/benmills/.npm/robotskirt/0.1.0/package
+verbose renamed [ '/Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package',
+verbose renamed   '/Users/benmills/.npm/robotskirt/0.1.0/package' ]
+verbose has wscript [ undefined,
+verbose has wscript   { file: '/Users/benmills/.npm/robotskirt/0.1.0/package/package.json',
+verbose has wscript     contributors: false,
+verbose has wscript     serverjs: false,
+verbose has wscript     wscript: true } ]
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: { install: 'node-waf configure build' },
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   _defaultsLoaded: true,
+silly testEngine   dist: 
+silly testEngine    { shasum: '7186340eca95338caa861fe03c306c5d176203a9',
+silly testEngine      bin: 
+silly testEngine       { '0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0': 
+silly testEngine          { shasum: '90202f9a5e3d85d9ba4f8303c8e99c712a292ade',
+silly testEngine            tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz' } },
+silly testEngine      tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0.tgz' } }
+verbose caching /Users/benmills/.npm/robotskirt/0.1.0/package/package.json
+verbose loadDefaults robotskirt@0.1.0
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 6732
+info shasum 7186340eca95338caa861fe03c306c5d176203a9
+info shasum /Users/benmills/.npm/robotskirt/0.1.0/package.tgz
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/package/package.json
+verbose chmod /Users/benmills/.npm/robotskirt/0.1.0/package.json 644
+verbose chmod /Users/benmills/.npm/robotskirt/0.1.0/package.tgz 644
+silly publish { name: 'robotskirt',
+silly publish   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly publish   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly publish   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly publish   version: '0.1.0',
+silly publish   lib: './build/default',
+silly publish   main: './build/default/robotskirt',
+silly publish   scripts: { install: 'node-waf configure build' },
+silly publish   repository: 
+silly publish    { type: 'git',
+silly publish      url: 'git://github.com/benmills/robotskirt.git' },
+silly publish   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly publish   dependencies: {},
+silly publish   devDependencies: {},
+silly publish   _id: 'robotskirt@0.1.0',
+silly publish   engines: { node: '*' },
+silly publish   _engineSupported: true,
+silly publish   _npmVersion: '1.0.6',
+silly publish   _nodeVersion: 'v0.4.7',
+silly publish   _defaultsLoaded: true,
+silly publish   dist: 
+silly publish    { shasum: '7186340eca95338caa861fe03c306c5d176203a9',
+silly publish      bin: 
+silly publish       { '0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0': 
+silly publish          { shasum: '90202f9a5e3d85d9ba4f8303c8e99c712a292ade',
+silly publish            tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz' } },
+silly publish      tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0.tgz' } }
+info prepublish robotskirt@0.1.0
+verbose about to cache unpack
+verbose the tarball /Users/benmills/.npm/robotskirt/0.1.0/package.tgz
+verbose install(where, what) [ '/Users/benmills/.npm/robotskirt/0.1.0/build',
+verbose install(where, what)   [ '/Users/benmills/.npm/robotskirt/0.1.0/package.tgz' ] ]
+verbose mkdir done: /Users/benmills/.npm/robotskirt/0.1.0/build 755
+verbose into /Users/benmills/.npm/robotskirt/0.1.0/build [ '/Users/benmills/.npm/robotskirt/0.1.0/package.tgz' ]
+verbose cache add [ '/Users/benmills/.npm/robotskirt/0.1.0/package.tgz',
+verbose cache add   null ]
+verbose mkdir done: /Users/benmills/.npm/robotskirt/0.1.0/___package.npm 755
+verbose unpack_ uid, gid [ undefined, undefined ]
+verbose unpackTarget /Users/benmills/.npm/robotskirt/0.1.0/package
+silly gunzTarPerm modes [ '755', '644' ]
+verbose success gzip "--decompress" "--stdout" "/Users/benmills/.npm/robotskirt/0.1.0/package.tgz"
+verbose success tar "-mvxpf" "-" "--no-same-owner" "-C" "/Users/benmills/.npm/robotskirt/0.1.0/___package.npm"
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/.gitmodules
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/example.js
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/package.json
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/README.mkd
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/wscript
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/array.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/buffer.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/markdown.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/robotskirt.cc
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/src/xhtml.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/Makefile
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/README.markdown
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/examples/upskirt.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/render/html_smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/markdown.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package/upskirt/src/buffer.c
+verbose gunzed /Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package
+verbose rm'ed /Users/benmills/.npm/robotskirt/0.1.0/package
+verbose renamed [ '/Users/benmills/.npm/robotskirt/0.1.0/___package.npm/package',
+verbose renamed   '/Users/benmills/.npm/robotskirt/0.1.0/package' ]
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/package/package.json
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 6732
+info shasum 7186340eca95338caa861fe03c306c5d176203a9
+info shasum /Users/benmills/.npm/robotskirt/0.1.0/package.tgz
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/package/package.json
+verbose chmod /Users/benmills/.npm/robotskirt/0.1.0/package.json 644
+verbose chmod /Users/benmills/.npm/robotskirt/0.1.0/package.tgz 644
+silly resolved [ { name: 'robotskirt',
+silly resolved     description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly resolved     tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly resolved     author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly resolved     version: '0.1.0',
+silly resolved     lib: './build/default',
+silly resolved     main: './build/default/robotskirt',
+silly resolved     scripts: { install: 'node-waf configure build' },
+silly resolved     repository: 
+silly resolved      { type: 'git',
+silly resolved        url: 'git://github.com/benmills/robotskirt.git' },
+silly resolved     bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly resolved     dependencies: {},
+silly resolved     devDependencies: {},
+silly resolved     _id: 'robotskirt@0.1.0',
+silly resolved     engines: { node: '*' },
+silly resolved     _engineSupported: true,
+silly resolved     _npmVersion: '1.0.6',
+silly resolved     _nodeVersion: 'v0.4.7',
+silly resolved     _defaultsLoaded: true,
+silly resolved     dist: 
+silly resolved      { shasum: '7186340eca95338caa861fe03c306c5d176203a9',
+silly resolved        bin: 
+silly resolved         { '0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0': 
+silly resolved            { shasum: '90202f9a5e3d85d9ba4f8303c8e99c712a292ade',
+silly resolved              tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz' } },
+silly resolved        tarball: 'http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0.tgz' } } ]
+info into /Users/benmills/.npm/robotskirt/0.1.0/build robotskirt@0.1.0
+info installOne robotskirt@0.1.0
+info unbuild /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: { install: 'node-waf configure build' },
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   _defaultsLoaded: true,
+silly testEngine   dist: { shasum: '7186340eca95338caa861fe03c306c5d176203a9' } }
+verbose caching /Users/benmills/.npm/robotskirt/0.1.0/package.json
+verbose mkdir done: /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm 755
+verbose unpack_ uid, gid [ undefined, undefined ]
+verbose unpackTarget /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt
+silly gunzTarPerm modes [ '755', '644' ]
+verbose success gzip "--decompress" "--stdout" "/Users/benmills/.npm/robotskirt/0.1.0/package.tgz"
+verbose success tar "-mvxpf" "-" "--no-same-owner" "-C" "/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm"
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/.gitmodules
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/example.js
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/package.json
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/README.mkd
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/wscript
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/array.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/buffer.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/buffer.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/markdown.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/markdown.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/robotskirt.cc
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/xhtml.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/xhtml.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/src/xhtml.o
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/.gitignore
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/Makefile
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/README.markdown
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/examples/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/examples/smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/examples/upskirt.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/render/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/render/html.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/render/html.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/render/html_smartypants.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/array.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/array.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/buffer.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/buffer.h
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/markdown.c
+silly asyncMap in gTP /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package/upskirt/src/markdown.h
+verbose gunzed /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package
+verbose rm'ed /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt
+verbose renamed [ '/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/___robotskirt.npm/package',
+verbose renamed   '/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt' ]
+verbose has wscript [ undefined,
+verbose has wscript   { file: '/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json',
+verbose has wscript     contributors: false,
+verbose has wscript     serverjs: false,
+verbose has wscript     wscript: true } ]
+silly testEngine { name: 'robotskirt',
+silly testEngine   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly testEngine   tags: [ 'upskirt', 'markdown', 'mkd' ],
+silly testEngine   author: { name: 'Ben Mills', email: 'ben@bmdev.org' },
+silly testEngine   version: '0.1.0',
+silly testEngine   lib: './build/default',
+silly testEngine   main: './build/default/robotskirt',
+silly testEngine   scripts: {},
+silly testEngine   repository: 
+silly testEngine    { type: 'git',
+silly testEngine      url: 'git://github.com/benmills/robotskirt.git' },
+silly testEngine   bugs: { url: 'http://github.com/benmills/robotskirt/issues' },
+silly testEngine   dependencies: {},
+silly testEngine   devDependencies: {},
+silly testEngine   _id: 'robotskirt@0.1.0',
+silly testEngine   engines: { node: '*' },
+silly testEngine   _engineSupported: true,
+silly testEngine   _npmVersion: '1.0.6',
+silly testEngine   _nodeVersion: 'v0.4.7',
+silly testEngine   prebuilt: '0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0',
+silly testEngine   files: [ 'build', 'build/', '*.node', '*.js' ],
+silly testEngine   path: '/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt' }
+verbose caching /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json
+info preinstall robotskirt@0.1.0
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json
+verbose into /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt []
+silly resolved []
+verbose about to build /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt
+info build /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json
+verbose linkStuff [ false,
+verbose linkStuff   false,
+verbose linkStuff   false,
+verbose linkStuff   '/Users/benmills/.npm/robotskirt/0.1.0/build/node_modules' ]
+info linkStuff robotskirt@0.1.0
+verbose linkBins robotskirt@0.1.0
+verbose linkMans robotskirt@0.1.0
+verbose rebuildBundles robotskirt@0.1.0
+info install robotskirt@0.1.0
+verbose unsafe-perm in lifecycle true
+silly exec sh "-c" "node-waf configure build"
+info postinstall robotskirt@0.1.0
+verbose installOne cb robotskirt@0.1.0
+info prebuild done robotskirt@0.1.0
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json
+verbose pack /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt /Users/benmills/.npm/robotskirt/0.1.0/package-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz
+verbose from cache /Users/benmills/.npm/robotskirt/0.1.0/build/node_modules/robotskirt/package.json
+verbose mkdir'ed /Users/benmills/.npm/robotskirt/0.1.0
+verbose tar about to write tar and gzip it.
+silly tar args [ '-cvf',
+silly tar args   '-',
+silly tar args   'robotskirt/.gitignore',
+silly tar args   'robotskirt/.gitmodules',
+silly tar args   'robotskirt/example.js',
+silly tar args   'robotskirt/package.json',
+silly tar args   'robotskirt/README.mkd',
+silly tar args   'robotskirt/wscript',
+silly tar args   'robotskirt/src/array.c',
+silly tar args   'robotskirt/src/array.h',
+silly tar args   'robotskirt/src/array.o',
+silly tar args   'robotskirt/src/buffer.c',
+silly tar args   'robotskirt/src/buffer.h',
+silly tar args   'robotskirt/src/buffer.o',
+silly tar args   'robotskirt/src/markdown.c',
+silly tar args   'robotskirt/src/markdown.h',
+silly tar args   'robotskirt/src/markdown.o',
+silly tar args   'robotskirt/src/robotskirt.cc',
+silly tar args   'robotskirt/src/xhtml.c',
+silly tar args   'robotskirt/src/xhtml.h',
+silly tar args   'robotskirt/src/xhtml.o',
+silly tar args   'robotskirt/upskirt/.gitignore',
+silly tar args   'robotskirt/upskirt/Makefile',
+silly tar args   'robotskirt/upskirt/README.markdown',
+silly tar args   'robotskirt/upskirt/examples/smartypants.c',
+silly tar args   'robotskirt/upskirt/examples/upskirt.c',
+silly tar args   'robotskirt/upskirt/render/html.c',
+silly tar args   'robotskirt/upskirt/render/html.h',
+silly tar args   'robotskirt/upskirt/render/html_smartypants.c',
+silly tar args   'robotskirt/upskirt/src/array.c',
+silly tar args   'robotskirt/upskirt/src/array.h',
+silly tar args   'robotskirt/upskirt/src/buffer.c',
+silly tar args   'robotskirt/upskirt/src/buffer.h',
+silly tar args   'robotskirt/upskirt/src/markdown.c',
+silly tar args   'robotskirt/upskirt/src/markdown.h' ]
+verbose success tar -cvf - <file list elided>
+verbose success gzip "--stdout"
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 40960
+silly updated sha bytes 7174
+info shasum 90202f9a5e3d85d9ba4f8303c8e99c712a292ade
+info shasum /Users/benmills/.npm/robotskirt/0.1.0/package-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz
+verbose PUT robotskirt
+verbose raw, before any munging robotskirt
+verbose url resolving [ 'http://registry.npmjs.org/', './robotskirt' ]
+verbose url resolved http://registry.npmjs.org/robotskirt
+verbose url parsed { protocol: 'http:',
+verbose url parsed   slashes: true,
+verbose url parsed   host: 'registry.npmjs.org',
+verbose url parsed   hostname: 'registry.npmjs.org',
+verbose url parsed   href: 'http://registry.npmjs.org/robotskirt',
+verbose url parsed   pathname: '/robotskirt' }
+WARN Sending authorization over insecure channel.
+silly writing json { _id: 'robotskirt',
+silly writing json   name: 'robotskirt',
+silly writing json   description: 'A node wrapper for the awesome C markdown parsing library, upskirt.',
+silly writing json   'dist-tags': {},
+silly writing json   versions: {},
+silly writing json   maintainers: [ { name: 'benmills', email: 'ben@bmdev.org' } ] }
+verbose response http://registry.npmjs.org/robotskirt
+silly chunk {"error":"conflict","reason":"Document update conflict."}
+silly chunk 
+verbose GET robotskirt
+verbose raw, before any munging robotskirt
+verbose url resolving [ 'http://registry.npmjs.org/', './robotskirt' ]
+verbose url resolved http://registry.npmjs.org/robotskirt
+verbose url parsed { protocol: 'http:',
+verbose url parsed   slashes: true,
+verbose url parsed   host: 'registry.npmjs.org',
+verbose url parsed   hostname: 'registry.npmjs.org',
+verbose url parsed   href: 'http://registry.npmjs.org/robotskirt',
+verbose url parsed   pathname: '/robotskirt' }
+verbose response http://registry.npmjs.org/robotskirt
+silly chunk {"_id":"robotskirt","_rev":"6-7392d800cd306efca3f7d8e031c1a6ed","name":"robotskirt","description":"A node wrapper for the awesome C markdown parsing library, upskirt.","dist-tags":{"latest":"0.1.0"},"versions":{"0.1.0":{"name":"robotskirt","description":"A node wrapper for the awesome C markdown parsing library, upskirt.","tags":["upskirt","markdown","mkd"],"author":{"name":"Ben Mills","email":"ben@bmdev.org"},"version":"0.1.0","lib":"./build/default","main":"./build/default/robotskirt","scripts":{"install":"node-waf configure build"},"repository":{"type":"git","url":"git://github.com/benmills/robotskirt.git"},"bugs":{"url":"http://github.com/benmills/robotskirt/issues"},"dependencies":{},"devDependencies":{},"_id":"robotskirt@0.1.0","engines":{"node":"*"},"_engineSupported":true,"_npmVersion":"1.0.1rcFINAL","_nodeVersion":"v0.4.1","_defaultsLoaded":true,"dist":{"shasum":"311de17be2d8146769b0f29d208588f781679a87","bin":{"0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.5-darwin-10.7.0":{"shasum":"e0c96113a5fc76c5e26fcfd7d3682c0cb69c9208","tarball":"http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.5-da
+silly chunk rwin-10.7.0.tgz"},"0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0":{"shasum":"cb27ef7071b7b7
+silly chunk fad7f9eacfe662a8b554d4ea0d","tarball":"http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0-0.4-ares1.7.4-ev4.4-openssl0.9.8l-v83.1.8.10-darwin-10.7.0.tgz"}},"tarball":"http://registry.npmjs.org/robotskirt/-/robotskirt-0.1.0.tgz"},"directories":{}}},"maintainers":[{"name":"benmills","email":"ben@Bmdev.org"}],"time":{"0.1.0":"2011-04-29T03:23:52.993Z"},"author":{"name":"Ben Mills","email":"ben@bmdev.org"},"repository":{"type":"git","url":"git://github.com/benmills/robotskirt.git"}}
+info Already published robotskirt@0.1.0
+verbose uploading bin dists []
+ERR! publish fail Cannot publish over existing version.
+ERR! publish fail Bump the 'version' field, set the --force flag, or
+ERR! publish fail     npm unpublish 'robotskirt@0.1.0'
+ERR! publish fail and try again
+ERR! 
+ERR! System Darwin 10.7.0
+ERR! command "node" "/usr/local/bin/npm" "publish"
+verbose exit [ 1, true ]
