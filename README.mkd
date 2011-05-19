@@ -1,7 +1,7 @@
 Robotskirt
 =============
 
-Robotskirt is a simple node wrapper for the [upskirt](https://github.com/tanoku/upskirt) markdown parser. It was inspred by the redcarpet gem [released by github](https://github.com/blog/832-rolling-out-the-redcarpet). Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.
+Robotskirt is a simple node binding for the [upskirt](https://github.com/tanoku/upskirt) markdown parser. It was inspired by the redcarpet gem [released by github](https://github.com/blog/832-rolling-out-the-redcarpet). Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.
 
 Install
 -------------
@@ -21,11 +21,13 @@ node-waf configure build
 Usage
 ------------
 
-Currently robotskirt has one function, toHtml, that will take a string of markdown and return HTML. 
+Currently robotskirt has one main function, `toHtml`, that will take a string of markdown and a callback that will be passed the parsed HTML. 
 
 ```javascript
 var markdown = require('robotskirt');
-var html = markdown.toHtml('# Hello World')
+markdown.toHtml('# Hello World', function (html) {
+  sys.puts(html);
+});
 // '<h1>Hellow World</h1>\n'
 ```
 
@@ -36,7 +38,15 @@ var fs = require('fs');
 var sys = require('sys');                     
 var markdown = require('robotskirt');         
                                               
-fs.readFile('test.mkd', function (err, data) {
-  sys.puts(markdown.toHtml(data));            
+fs.readFile('README.mkd', function (err, data) {
+  markdown.toHtml(data, function (html) {
+    sys.puts(html);            
+  });
 });                                           
+```
+
+If you would like to parse your markdown synchronously you can use the `toHtmlSync` function.
+
+```javascript
+var html = markdown.toHtmlSync("*sync!*");
 ```

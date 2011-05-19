@@ -26,8 +26,8 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define TEXT_UNIT 64	/* unit for the copy of the input buffer */
-#define WORK_UNIT 64	/* block-level working buffer */
+#define BUFFER_BLOCK 0
+#define BUFFER_SPAN 1
 
 #define MKD_LI_END 8	/* internal list flag */
 
@@ -50,13 +50,45 @@ struct render;
 typedef size_t
 (*char_trigger)(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
 
+static size_t char_emphasis(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_linebreak(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_codespan(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_escape(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_entity(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_langle_tag(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_autolink(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+static size_t char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size);
+
+enum markdown_char_t {
+	MD_CHAR_NONE = 0,
+	MD_CHAR_EMPHASIS,
+	MD_CHAR_CODESPAN,
+	MD_CHAR_LINEBREAK,
+	MD_CHAR_LINK,
+	MD_CHAR_LANGLE,
+	MD_CHAR_ESCAPE,
+	MD_CHAR_ENTITITY,
+	MD_CHAR_AUTOLINK,
+};
+
+static char_trigger markdown_char_ptrs[] = {
+	NULL,
+	&char_emphasis,
+	&char_codespan,
+	&char_linebreak,
+	&char_link,
+	&char_langle_tag,
+	&char_escape,
+	&char_entity,
+	&char_autolink,
+};
 
 /* render • structure containing one particular render */
 struct render {
 	struct mkd_renderer	make;
 	struct array refs;
-	char_trigger active_char[256];
-	struct parray work;
+	char active_char[256];
+	struct parray work_bufs[2];
 	unsigned int ext_flags;
 	size_t max_nesting;
 };
@@ -68,25 +100,27 @@ struct html_tag {
 };
 
 static inline struct buf *
-rndr_newbuf(struct render *rndr)
+rndr_newbuf(struct render *rndr, int type)
 {
+	static const size_t buf_size[2] = {256, 64};
 	struct buf *work = NULL;
+	struct parray *queue = &rndr->work_bufs[type];
 
-	if (rndr->work.size < rndr->work.asize) {
-		work = rndr->work.item[rndr->work.size++];
+	if (queue->size < queue->asize) {
+		work = queue->item[queue->size++];
 		work->size = 0;
 	} else {
-		work = bufnew(WORK_UNIT);
-		parr_push(&rndr->work, work);
+		work = bufnew(buf_size[type]);
+		parr_push(queue, work);
 	}
 
 	return work;
 }
 
 static inline void
-rndr_popbuf(struct render *rndr)
+rndr_popbuf(struct render *rndr, int type)
 {
-	rndr->work.size--;
+	rndr->work_bufs[type].size--;
 }
 
 /********************
@@ -138,11 +172,33 @@ is_safe_link(const char *link, size_t link_len)
 	for (i = 0; i < valid_uris_count; ++i) {
 		size_t len = strlen(valid_uris[i]);
 
-		if (link_len > len && strncasecmp(link, valid_uris[i], len) == 0)
+		if (link_len > len &&
+			strncasecmp(link, valid_uris[i], len) == 0 &&
+			isalnum(link[len]))
 			return 1;
 	}
 
 	return 0;
+}
+
+static void
+unscape_text(struct buf *ob, struct buf *src)
+{
+	size_t i = 0, org;
+	while (i < src->size) {
+		org = i;
+		while (i < src->size && src->data[i] != '\\')
+			i++;
+
+		if (i > org)
+			bufput(ob, src->data + org, i - org);
+
+		if (i + 1 >= src->size)
+			break;
+
+		bufputc(ob, src->data[i + 1]);
+		i += 2;
+	}
 }
 
 /* cmp_link_ref • comparison function for link_ref sorted arrays */
@@ -207,15 +263,28 @@ is_mail_autolink(char *data, size_t size)
 	size_t i = 0, nb = 0;
 
 	/* address is assumed to be: [-@._a-zA-Z0-9]+ with exactly one '@' */
-	while (i < size && (data[i] == '-' || data[i] == '.'
-	|| data[i] == '_' || data[i] == '@'
-	|| (data[i] >= 'a' && data[i] <= 'z')
-	|| (data[i] >= 'A' && data[i] <= 'Z')
-	|| (data[i] >= '0' && data[i] <= '9'))) {
-		if (data[i] == '@') nb += 1;
-		i += 1; }
-	if (i >= size || data[i] != '>' || nb != 1) return 0;
-	return i + 1;
+	for (i = 0; i < size; ++i) {
+		if (isalnum(data[i]))
+			continue;
+
+		switch (data[i]) {
+			case '@':
+				nb++;
+
+			case '-':
+			case '.':
+			case '_':
+				break;
+
+			case '>':
+				return (nb == 1) ? i + 1 : 0;
+
+			default:
+				return 0;
+		}
+	}
+
+	return 0;
 }
 
 /* tag_length • returns the length of the given tag, or 0 is it's not valid */
@@ -227,17 +296,18 @@ tag_length(char *data, size_t size, enum mkd_autolink *autolink)
 	/* a valid tag can't be shorter than 3 chars */
 	if (size < 3) return 0;
 
-	/* begins with a '<' optionally followed by '/', followed by letter */
+	/* begins with a '<' optionally followed by '/', followed by letter or number */
 	if (data[0] != '<') return 0;
 	i = (data[1] == '/') ? 2 : 1;
-	if ((data[i] < 'a' || data[i] > 'z')
-	&&  (data[i] < 'A' || data[i] > 'Z')) return 0;
+
+	if (!isalnum(data[i]))
+		return 0;
 
 	/* scheme test */
 	*autolink = MKDA_NOT_AUTOLINK;
 
 	/* try to find the beggining of an URI */
-	while (i < size && (isalpha(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-'))
+	while (i < size && (isalnum(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-'))
 		i++;
 
 	if (i > 1 && data[i] == '@') {
@@ -253,14 +323,19 @@ tag_length(char *data, size_t size, enum mkd_autolink *autolink)
 	}
 
 	/* completing autolink test: no whitespace or ' or " */
-	if (i >= size || i == '>')
+	if (i >= size)
 		*autolink = MKDA_NOT_AUTOLINK;
+
 	else if (*autolink) {
 		j = i;
-		while (i < size && data[i] != '>' && data[i] != '\''
-		&& data[i] != '"' && data[i] != ' ' && data[i] != '\t'
-		&& data[i] != '\t')
-			i += 1;
+
+		while (i < size) {
+			if (data[i] == '\\') i += 2;
+			else if (data[i] == '>' || data[i] == '\'' ||
+					data[i] == '"' || isspace(data[i])) break;
+			else i += 1;
+		}
+
 		if (i >= size) return 0;
 		if (i > j && data[i] == '>') return i + 1;
 		/* one of the forbidden chars has been found */
@@ -278,10 +353,11 @@ static void
 parse_inline(struct buf *ob, struct render *rndr, char *data, size_t size)
 {
 	size_t i = 0, end = 0;
-	char_trigger action = 0;
+	char action = 0;
 	struct buf work = { 0, 0, 0, 0, 0 };
 
-	if (rndr->work.size > rndr->max_nesting)
+	if (rndr->work_bufs[BUFFER_SPAN].size +
+		rndr->work_bufs[BUFFER_BLOCK].size > rndr->max_nesting)
 		return;
 
 	while (i < size) {
@@ -302,7 +378,7 @@ parse_inline(struct buf *ob, struct render *rndr, char *data, size_t size)
 		i = end;
 
 		/* calling the trigger */
-		end = action(ob, rndr, data + i, i, size - i);
+		end = markdown_char_ptrs[(int)action](ob, rndr, data + i, i, size - i);
 		if (!end) /* no action from the callback */
 			end = i + 1;
 		else { 
@@ -390,15 +466,15 @@ parse_emph1(struct buf *ob, struct render *rndr, char *data, size_t size, char c
 
 		if (data[i] == c && !isspace(data[i - 1])) {
 
-			if ((rndr->ext_flags & MKDEXT_LAX_EMPHASIS) == 0) {
+			if (rndr->ext_flags & MKDEXT_NO_INTRA_EMPHASIS) {
 				if (!(i + 1 == size || isspace(data[i + 1]) || ispunct(data[i + 1])))
 					continue;
 			}
 
-			work = rndr_newbuf(rndr);
+			work = rndr_newbuf(rndr, BUFFER_SPAN);
 			parse_inline(work, rndr, data, i);
 			r = rndr->make.emphasis(ob, work, rndr->make.opaque);
-			rndr_popbuf(rndr);
+			rndr_popbuf(rndr, BUFFER_SPAN);
 			return r ? i + 1 : 0;
 		}
 	}
@@ -426,10 +502,10 @@ parse_emph2(struct buf *ob, struct render *rndr, char *data, size_t size, char c
 		i += len;
 
 		if (i + 1 < size && data[i] == c && data[i + 1] == c && i && !isspace(data[i - 1])) {
-			work = rndr_newbuf(rndr);
+			work = rndr_newbuf(rndr, BUFFER_SPAN);
 			parse_inline(work, rndr, data, i);
 			r = render_method(ob, work, rndr->make.opaque);
-			rndr_popbuf(rndr);
+			rndr_popbuf(rndr, BUFFER_SPAN);
 			return r ? i + 2 : 0;
 		}
 		i++;
@@ -456,11 +532,11 @@ parse_emph3(struct buf *ob, struct render *rndr, char *data, size_t size, char c
 
 		if (i + 2 < size && data[i + 1] == c && data[i + 2] == c && rndr->make.triple_emphasis) {
 			/* triple symbol found */
-			struct buf *work = rndr_newbuf(rndr);
+			struct buf *work = rndr_newbuf(rndr, BUFFER_SPAN);
 
 			parse_inline(work, rndr, data, i);
 			r = rndr->make.triple_emphasis(ob, work, rndr->make.opaque);
-			rndr_popbuf(rndr);
+			rndr_popbuf(rndr, BUFFER_SPAN);
 			return r ? i + 3 : 0;
 
 		} else if (i + 1 < size && data[i + 1] == c) {
@@ -629,9 +705,12 @@ char_langle_tag(struct buf *ob, struct render *rndr, char *data, size_t offset, 
 
 	if (end > 2) {
 		if (rndr->make.autolink && altype != MKDA_NOT_AUTOLINK) {
+			struct buf *u_link = rndr_newbuf(rndr, BUFFER_SPAN);
 			work.data = data + 1;
 			work.size = end - 2;
-			ret = rndr->make.autolink(ob, &work, altype, rndr->make.opaque);
+			unscape_text(u_link, &work);
+			ret = rndr->make.autolink(ob, u_link, altype, rndr->make.opaque);
+			rndr_popbuf(rndr, BUFFER_SPAN);
 		}
 		else if (rndr->make.raw_html_tag)
 			ret = rndr->make.raw_html_tag(ob, &work, rndr->make.opaque);
@@ -645,18 +724,86 @@ static size_t
 char_autolink(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t size)
 {
 	struct buf work = { data, 0, 0, 0, 0 };
+	char copen = 0;
+	size_t link_end;
 
-	if (offset > 0 && !isspace(data[-1]))
-		return 0;
+	if (offset > 0) {
+		if (!isspace(data[-1]) && !ispunct(data[-1]))
+			return 0;
+	}
 
 	if (!is_safe_link(data, size))
 		return 0;
 
-	while (work.size < size && !isspace(data[work.size]))
-		work.size++;
+	link_end = 0;
+	while (link_end < size && !isspace(data[link_end]))
+		link_end++;
 
-	if (rndr->make.autolink)
-		rndr->make.autolink(ob, &work, MKDA_NORMAL, rndr->make.opaque);
+	/* Skip punctuation at the end of the link */
+	if ((data[link_end - 1] == '.' ||
+		data[link_end - 1] == ',' ||
+		data[link_end - 1] == ';') &&
+		data[link_end - 2] != '\\')
+		link_end--;
+
+	/* See if the link finishes with a punctuation sign that can be closed. */
+	switch (data[link_end - 1]) {
+	case '"':	copen = '"'; break;
+	case '\'':	copen = '\''; break;
+	case ')':	copen = '('; break;
+	case ']':	copen = '['; break;
+	case '}':	copen = '{'; break;
+	}
+
+	if (copen != 0) {
+		char *buf_start = data - offset;
+		char *buf_end = data + link_end - 2;
+
+		size_t open_delim = 1;
+
+		/* Try to close the final punctuation sign in this same line;
+		 * if we managed to close it outside of the URL, that means that it's
+		 * not part of the URL. If it closes inside the URL, that means it
+		 * is part of the URL.
+		 *
+		 * Examples:
+		 *
+		 *	foo http://www.pokemon.com/Pikachu_(Electric) bar
+		 *		=> http://www.pokemon.com/Pikachu_(Electric)
+		 *
+		 *	foo (http://www.pokemon.com/Pikachu_(Electric)) bar
+		 *		=> http://www.pokemon.com/Pikachu_(Electric)
+		 *
+		 *	foo http://www.pokemon.com/Pikachu_(Electric)) bar
+		 *		=> http://www.pokemon.com/Pikachu_(Electric))
+		 *
+		 *	(foo http://www.pokemon.com/Pikachu_(Electric)) bar
+		 *		=> foo http://www.pokemon.com/Pikachu_(Electric)
+		 */
+
+		while (buf_end >= buf_start && *buf_end != '\n' && open_delim) {
+			if (*buf_end == data[link_end - 1])
+				open_delim++;
+
+			if (*buf_end == copen)
+				open_delim--;
+
+			buf_end--;
+		}
+
+		if (open_delim == 0)
+			link_end--;
+	}
+
+	work.size = link_end;
+
+	if (rndr->make.autolink) {
+		struct buf *u_link = rndr_newbuf(rndr, BUFFER_SPAN);
+		unscape_text(u_link, &work);
+
+		rndr->make.autolink(ob, u_link, MKDA_NORMAL, rndr->make.opaque);
+		rndr_popbuf(rndr, BUFFER_SPAN);
+	}
 
 	return work.size;
 }
@@ -670,7 +817,8 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 	struct buf *content = 0;
 	struct buf *link = 0;
 	struct buf *title = 0;
-	size_t org_work_size = rndr->work.size;
+	struct buf *u_link = 0;
+	size_t org_work_size = rndr->work_bufs[BUFFER_SPAN].size;
 	int text_has_nl = 0, ret = 0;
 
 	/* checking whether the correct renderer exists */
@@ -717,9 +865,11 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 		link_b = i;
 
 		/* looking for link end: ' " ) */
-		while (i < size && data[i] != '\'' && data[i] != '"' &&
-				(data[i] != ')' || data[i - 1] == '\\'))
-			i++;
+		while (i < size) {
+			if (data[i] == '\\') i += 2;
+			else if (data[i] == ')' || data[i] == '\'' || data[i] == '"') break;
+			else i += 1;
+		}
 
 		if (i >= size) goto cleanup;
 		link_e = i;
@@ -729,7 +879,12 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 			i++;
 			title_b = i;
 
-			while (i < size && (data[i] != ')' || data[i - 1] == '\\')) i++;
+			while (i < size) {
+				if (data[i] == '\\') i += 2;
+				else if (data[i] == ')') break;
+				else i += 1;
+			}
+
 			if (i >= size) goto cleanup;
 
 			/* skipping whitespaces after title */
@@ -754,12 +909,12 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 
 		/* building escaped link and title */
 		if (link_e > link_b) {
-			link = rndr_newbuf(rndr);
+			link = rndr_newbuf(rndr, BUFFER_SPAN);
 			bufput(link, data + link_b, link_e - link_b);
 		}
 
 		if (title_e > title_b) {
-			title = rndr_newbuf(rndr);
+			title = rndr_newbuf(rndr, BUFFER_SPAN);
 			bufput(title, data + title_b, title_e - title_b);
 		}
 
@@ -781,7 +936,7 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 		/* finding the link_ref */
 		if (link_b == link_e) {
 			if (text_has_nl) {
-				struct buf *b = rndr_newbuf(rndr);
+				struct buf *b = rndr_newbuf(rndr, BUFFER_SPAN);
 				size_t j;
 
 				for (j = 1; j < txt_e; j++) {
@@ -818,7 +973,7 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 
 		/* crafting the id */
 		if (text_has_nl) {
-			struct buf *b = rndr_newbuf(rndr);
+			struct buf *b = rndr_newbuf(rndr, BUFFER_SPAN);
 			size_t j;
 
 			for (j = 1; j < txt_e; j++) {
@@ -849,9 +1004,14 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 
 	/* building content: img alt is escaped, link content is parsed */
 	if (txt_e > 1) {
-		content = rndr_newbuf(rndr);
+		content = rndr_newbuf(rndr, BUFFER_SPAN);
 		if (is_img) bufput(content, data + 1, txt_e - 1);
 		else parse_inline(content, rndr, data + 1, txt_e - 1);
+	}
+
+	if (link) {
+		u_link = rndr_newbuf(rndr, BUFFER_SPAN);
+		unscape_text(u_link, link);
 	}
 
 	/* calling the relevant rendering function */
@@ -859,13 +1019,14 @@ char_link(struct buf *ob, struct render *rndr, char *data, size_t offset, size_t
 		if (ob->size && ob->data[ob->size - 1] == '!')
 			ob->size -= 1;
 
-		ret = rndr->make.image(ob, link, title, content, rndr->make.opaque);
-	} else
-		ret = rndr->make.link(ob, link, title, content, rndr->make.opaque);
+		ret = rndr->make.image(ob, u_link, title, content, rndr->make.opaque);
+	} else {
+		ret = rndr->make.link(ob, u_link, title, content, rndr->make.opaque);
+	}
 
 	/* cleanup */
 cleanup:
-	rndr->work.size = (int)org_work_size;
+	rndr->work_bufs[BUFFER_SPAN].size = (int)org_work_size;
 	return ret ? i : 0;
 }
 
@@ -988,6 +1149,26 @@ is_codefence(char *data, size_t size, struct buf *syntax)
 	return i + 1;
 }
 
+/* is_atxheader • returns whether the line is a hash-prefixed header */
+static int
+is_atxheader(struct render *rndr, char *data, size_t size)
+{
+	if (data[0] != '#')
+		return 0;
+
+	if (rndr->ext_flags & MKDEXT_SPACE_HEADERS) {
+		size_t level = 0;
+
+		while (level < size && level < 6 && data[level] == '#')
+			level++;
+
+		if (level < size && data[level] != ' ' && data[level] != '\t')
+			return 0;
+	}
+
+	return 1;
+}
+
 /* is_headerline • returns whether the line is a setext-style hdr underline */
 static int
 is_headerline(char *data, size_t size)
@@ -1078,7 +1259,7 @@ parse_blockquote(struct buf *ob, struct render *rndr, char *data, size_t size)
 	char *work_data = 0;
 	struct buf *out = 0;
 
-	out = rndr_newbuf(rndr);
+	out = rndr_newbuf(rndr, BUFFER_BLOCK);
 	beg = 0;
 	while (beg < size) {
 		for (end = beg + 1; end < size && data[end - 1] != '\n'; end++);
@@ -1108,7 +1289,7 @@ parse_blockquote(struct buf *ob, struct render *rndr, char *data, size_t size)
 	parse_block(out, rndr, work_data, work_size);
 	if (rndr->make.blockquote)
 		rndr->make.blockquote(ob, out, rndr->make.opaque);
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_BLOCK);
 	return end;
 }
 
@@ -1136,7 +1317,7 @@ parse_paragraph(struct buf *ob, struct render *rndr, char *data, size_t size)
 			}
 		}
 
-		if (data[i] == '#' || is_hrule(data + i, size - i)) {
+		if (is_atxheader(rndr, data + i, size - i) || is_hrule(data + i, size - i)) {
 			end = i;
 			break;
 		}
@@ -1149,11 +1330,11 @@ parse_paragraph(struct buf *ob, struct render *rndr, char *data, size_t size)
 		work.size--;
 
 	if (!level) {
-		struct buf *tmp = rndr_newbuf(rndr);
+		struct buf *tmp = rndr_newbuf(rndr, BUFFER_BLOCK);
 		parse_inline(tmp, rndr, work.data, work.size);
 		if (rndr->make.paragraph)
 			rndr->make.paragraph(ob, tmp, rndr->make.opaque);
-		rndr_popbuf(rndr);
+		rndr_popbuf(rndr, BUFFER_BLOCK);
 	} else {
 		struct buf *header_work;
 
@@ -1170,26 +1351,26 @@ parse_paragraph(struct buf *ob, struct render *rndr, char *data, size_t size)
 				work.size -= 1;
 
 			if (work.size > 0) {
-				struct buf *tmp = rndr_newbuf(rndr);
+				struct buf *tmp = rndr_newbuf(rndr, BUFFER_BLOCK);
 				parse_inline(tmp, rndr, work.data, work.size);
 
 				if (rndr->make.paragraph)
 					rndr->make.paragraph(ob, tmp, rndr->make.opaque);
 
-				rndr_popbuf(rndr);
+				rndr_popbuf(rndr, BUFFER_BLOCK);
 				work.data += beg;
 				work.size = i - beg;
 			}
 			else work.size = i;
 		}
 
-		header_work = rndr_newbuf(rndr);
+		header_work = rndr_newbuf(rndr, BUFFER_SPAN);
 		parse_inline(header_work, rndr, work.data, work.size);
 
 		if (rndr->make.header)
 			rndr->make.header(ob, header_work, (int)level, rndr->make.opaque);
 
-		rndr_popbuf(rndr);
+		rndr_popbuf(rndr, BUFFER_SPAN);
 	}
 
 	return end;
@@ -1206,7 +1387,7 @@ parse_fencedcode(struct buf *ob, struct render *rndr, char *data, size_t size)
 	beg = is_codefence(data, size, &lang);
 	if (beg == 0) return 0;
 
-	work = rndr_newbuf(rndr);
+	work = rndr_newbuf(rndr, BUFFER_BLOCK);
 
 	while (beg < size) {
 		size_t fence_end;
@@ -1235,7 +1416,7 @@ parse_fencedcode(struct buf *ob, struct render *rndr, char *data, size_t size)
 	if (rndr->make.blockcode)
 		rndr->make.blockcode(ob, work, lang.size ? &lang : NULL, rndr->make.opaque);
 
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_BLOCK);
 	return beg;
 }
 
@@ -1245,7 +1426,7 @@ parse_blockcode(struct buf *ob, struct render *rndr, char *data, size_t size)
 	size_t beg, end, pre;
 	struct buf *work = 0;
 
-	work = rndr_newbuf(rndr);
+	work = rndr_newbuf(rndr, BUFFER_BLOCK);
 
 	beg = 0;
 	while (beg < size) {
@@ -1276,7 +1457,7 @@ parse_blockcode(struct buf *ob, struct render *rndr, char *data, size_t size)
 	if (rndr->make.blockcode)
 		rndr->make.blockcode(ob, work, NULL, rndr->make.opaque);
 
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_BLOCK);
 	return beg;
 }
 
@@ -1306,8 +1487,8 @@ parse_listitem(struct buf *ob, struct render *rndr, char *data, size_t size, int
 		end++;
 
 	/* getting working buffers */
-	work = rndr_newbuf(rndr);
-	inter = rndr_newbuf(rndr);
+	work = rndr_newbuf(rndr, BUFFER_SPAN);
+	inter = rndr_newbuf(rndr, BUFFER_SPAN);
 
 	/* putting the first line into the working buffer */
 	bufput(work, data + beg, end - beg);
@@ -1391,8 +1572,8 @@ parse_listitem(struct buf *ob, struct render *rndr, char *data, size_t size, int
 	if (rndr->make.listitem)
 		rndr->make.listitem(ob, inter, *flags, rndr->make.opaque);
 
-	rndr_popbuf(rndr);
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_SPAN);
+	rndr_popbuf(rndr, BUFFER_SPAN);
 	return beg;
 }
 
@@ -1404,7 +1585,7 @@ parse_list(struct buf *ob, struct render *rndr, char *data, size_t size, int fla
 	struct buf *work = 0;
 	size_t i = 0, j;
 
-	work = rndr_newbuf(rndr);
+	work = rndr_newbuf(rndr, BUFFER_BLOCK);
 
 	while (i < size) {
 		j = parse_listitem(work, rndr, data + i, size - i, &flags);
@@ -1416,10 +1597,9 @@ parse_list(struct buf *ob, struct render *rndr, char *data, size_t size, int fla
 
 	if (rndr->make.list)
 		rndr->make.list(ob, work, flags, rndr->make.opaque);
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_BLOCK);
 	return i;
 }
-
 
 /* parse_atxheader • parsing of atx-style headers */
 static size_t
@@ -1427,9 +1607,6 @@ parse_atxheader(struct buf *ob, struct render *rndr, char *data, size_t size)
 {
 	size_t level = 0;
 	size_t i, end, skip;
-
-	if (!size || data[0] != '#')
-		return 0;
 
 	while (level < size && level < 6 && data[level] == '#')
 		level++;
@@ -1446,14 +1623,14 @@ parse_atxheader(struct buf *ob, struct render *rndr, char *data, size_t size)
 		end--;
 
 	if (end > i) {
-		struct buf *work = rndr_newbuf(rndr);
+		struct buf *work = rndr_newbuf(rndr, BUFFER_SPAN);
 
 		parse_inline(work, rndr, data + i, end - i);
 
 		if (rndr->make.header)
 			rndr->make.header(ob, work, (int)level, rndr->make.opaque);
 
-		rndr_popbuf(rndr);
+		rndr_popbuf(rndr, BUFFER_SPAN);
 	}
 
 	return skip;
@@ -1596,7 +1773,7 @@ parse_table_row(struct buf *ob, struct render *rndr, char *data, size_t size, si
 	size_t i = 0, col;
 	struct buf *row_work = 0;
 
-	row_work = rndr_newbuf(rndr);
+	row_work = rndr_newbuf(rndr, BUFFER_SPAN);
 
 	if (i < size && data[i] == '|')
 		i++;
@@ -1605,7 +1782,7 @@ parse_table_row(struct buf *ob, struct render *rndr, char *data, size_t size, si
 		size_t cell_start, cell_end;
 		struct buf *cell_work;
 
-		cell_work = rndr_newbuf(rndr);
+		cell_work = rndr_newbuf(rndr, BUFFER_SPAN);
 
 		while (i < size && isspace(data[i]))
 			i++;
@@ -1624,7 +1801,7 @@ parse_table_row(struct buf *ob, struct render *rndr, char *data, size_t size, si
 		if (rndr->make.table_cell)
 			rndr->make.table_cell(row_work, cell_work, col_data ? col_data[col] : 0, rndr->make.opaque);
 
-		rndr_popbuf(rndr);
+		rndr_popbuf(rndr, BUFFER_SPAN);
 		i++;
 	}
 
@@ -1637,7 +1814,7 @@ parse_table_row(struct buf *ob, struct render *rndr, char *data, size_t size, si
 	if (rndr->make.table_row)
 		rndr->make.table_row(ob, row_work, rndr->make.opaque);
 
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_SPAN);
 }
 
 static size_t
@@ -1675,18 +1852,32 @@ parse_table_header(struct buf *ob, struct render *rndr, char *data, size_t size,
 		under_end++;
 
 	for (col = 0; col < *columns && i < under_end; ++col) {
+		size_t dashes = 0;
+
+		while (i < under_end && (data[i] == ' ' || data[i] == '\t'))
+			i++;
+
 		if (data[i] == ':') {
 			i++; (*column_data)[col] |= MKD_TABLE_ALIGN_L;
+			dashes++;
 		}
 
-		while (i < under_end && data[i] == '-')
-			i++;
+		while (i < under_end && data[i] == '-') {
+			i++; dashes++;
+		}
 
 		if (i < under_end && data[i] == ':') {
 			i++; (*column_data)[col] |= MKD_TABLE_ALIGN_R;
+			dashes++;
 		}
 
+		while (i < under_end && (data[i] == ' ' || data[i] == '\t'))
+			i++;
+
 		if (i < under_end && data[i] != '|')
+			break;
+
+		if (dashes < 3)
 			break;
 
 		i++;
@@ -1710,8 +1901,8 @@ parse_table(struct buf *ob, struct render *rndr, char *data, size_t size)
 	size_t columns;
 	int *col_data = NULL;
 
-	header_work = rndr_newbuf(rndr);
-	body_work = rndr_newbuf(rndr);
+	header_work = rndr_newbuf(rndr, BUFFER_SPAN);
+	body_work = rndr_newbuf(rndr, BUFFER_BLOCK);
 
 	i = parse_table_header(header_work, rndr, data, size, &columns, &col_data);
 	if (i > 0) {
@@ -1740,8 +1931,8 @@ parse_table(struct buf *ob, struct render *rndr, char *data, size_t size)
 	}
 
 	free(col_data);
-	rndr_popbuf(rndr);
-	rndr_popbuf(rndr);
+	rndr_popbuf(rndr, BUFFER_SPAN);
+	rndr_popbuf(rndr, BUFFER_BLOCK);
 	return i;
 }
 
@@ -1753,14 +1944,15 @@ parse_block(struct buf *ob, struct render *rndr, char *data, size_t size)
 	char *txt_data;
 	beg = 0;
 
-	if (rndr->work.size > rndr->max_nesting)
+	if (rndr->work_bufs[BUFFER_SPAN].size +
+		rndr->work_bufs[BUFFER_BLOCK].size > rndr->max_nesting)
 		return;
 
 	while (beg < size) {
 		txt_data = data + beg;
 		end = size - beg;
 
-		if (data[beg] == '#')
+		if (is_atxheader(rndr, txt_data, end))
 			beg += parse_atxheader(ob, rndr, txt_data, end);
 
 		else if (data[beg] == '<' && rndr->make.blockhtml &&
@@ -1955,46 +2147,50 @@ ups_markdown(struct buf *ob, struct buf *ib, const struct mkd_renderer *rndrer, 
 	if (!rndrer)
 		return;
 
-	text = bufnew(TEXT_UNIT);
+	text = bufnew(64);
 	if (!text)
 		return;
 
-	rndr.make = *rndrer;
+	/* Preallocate enough space for our buffer to avoid expanding while copying */
+	bufgrow(text, ib->size);
+
+	memcpy(&rndr.make, rndrer, sizeof(struct mkd_renderer));
 	arr_init(&rndr.refs, sizeof (struct link_ref));
-	parr_init(&rndr.work);
+	parr_init(&rndr.work_bufs[BUFFER_BLOCK]);
+	parr_init(&rndr.work_bufs[BUFFER_SPAN]);
 
 	for (i = 0; i < 256; i += 1)
 		rndr.active_char[i] = 0;
 
 	if (rndr.make.emphasis || rndr.make.double_emphasis || rndr.make.triple_emphasis) {
-		rndr.active_char['*'] = char_emphasis;
-		rndr.active_char['_'] = char_emphasis;
+		rndr.active_char['*'] = MD_CHAR_EMPHASIS;
+		rndr.active_char['_'] = MD_CHAR_EMPHASIS;
 		if (extensions & MKDEXT_STRIKETHROUGH)
-			rndr.active_char['~'] = char_emphasis;
+			rndr.active_char['~'] = MD_CHAR_EMPHASIS;
 	}
 
 	if (rndr.make.codespan)
-		rndr.active_char['`'] = char_codespan;
+		rndr.active_char['`'] = MD_CHAR_CODESPAN;
 
 	if (rndr.make.linebreak)
-		rndr.active_char['\n'] = char_linebreak;
+		rndr.active_char['\n'] = MD_CHAR_LINEBREAK;
 
 	if (rndr.make.image || rndr.make.link)
-		rndr.active_char['['] = char_link;
+		rndr.active_char['['] = MD_CHAR_LINK;
 
-	rndr.active_char['<'] = char_langle_tag;
-	rndr.active_char['\\'] = char_escape;
-	rndr.active_char['&'] = char_entity;
+	rndr.active_char['<'] = MD_CHAR_LANGLE;
+	rndr.active_char['\\'] = MD_CHAR_ESCAPE;
+	rndr.active_char['&'] = MD_CHAR_ENTITITY;
 
 	if (extensions & MKDEXT_AUTOLINK) {
-		rndr.active_char['h'] = char_autolink; // http, https
-		rndr.active_char['H'] = char_autolink;
+		rndr.active_char['h'] = MD_CHAR_AUTOLINK; // http, https
+		rndr.active_char['H'] = MD_CHAR_AUTOLINK;
 
-		rndr.active_char['f'] = char_autolink; // ftp
-		rndr.active_char['F'] = char_autolink;
+		rndr.active_char['f'] = MD_CHAR_AUTOLINK; // ftp
+		rndr.active_char['F'] = MD_CHAR_AUTOLINK;
 
-		rndr.active_char['m'] = char_autolink; // mailto
-		rndr.active_char['M'] = char_autolink;
+		rndr.active_char['m'] = MD_CHAR_AUTOLINK; // mailto
+		rndr.active_char['M'] = MD_CHAR_AUTOLINK;
 	}
 
 	/* Extension data */
@@ -2029,24 +2225,22 @@ ups_markdown(struct buf *ob, struct buf *ib, const struct mkd_renderer *rndrer, 
 	if (rndr.refs.size)
 		qsort(rndr.refs.base, rndr.refs.size, rndr.refs.unit, cmp_link_ref_sort);
 
-	/* adding a final newline if not already present */
-	if (!text->size)
-		goto cleanup;
-
-	if (text->data[text->size - 1] != '\n' &&  text->data[text->size - 1] != '\r')
-		bufputc(text, '\n');
-
 	/* second pass: actual rendering */
 	if (rndr.make.doc_header)
 		rndr.make.doc_header(ob, rndr.make.opaque);
 
-	parse_block(ob, &rndr, text->data, text->size);
+	if (text->size) {
+		/* adding a final newline if not already present */
+		if (text->data[text->size - 1] != '\n' &&  text->data[text->size - 1] != '\r')
+			bufputc(text, '\n');
+
+		parse_block(ob, &rndr, text->data, text->size);
+	}
 
 	if (rndr.make.doc_footer)
 		rndr.make.doc_footer(ob, rndr.make.opaque);
 
 	/* clean-up */
-cleanup:
 	bufrelease(text);
 	lr = rndr.refs.base;
 	for (i = 0; i < (size_t)rndr.refs.size; i += 1) {
@@ -2057,12 +2251,25 @@ cleanup:
 
 	arr_free(&rndr.refs);
 
-	assert(rndr.work.size == 0);
+	assert(rndr.work_bufs[BUFFER_SPAN].size == 0);
+	assert(rndr.work_bufs[BUFFER_BLOCK].size == 0);
 
-	for (i = 0; i < (size_t)rndr.work.asize; i += 1)
-		bufrelease(rndr.work.item[i]);
+	for (i = 0; i < (size_t)rndr.work_bufs[BUFFER_SPAN].asize; ++i)
+		bufrelease(rndr.work_bufs[BUFFER_SPAN].item[i]);
 
-	parr_free(&rndr.work);
+	for (i = 0; i < (size_t)rndr.work_bufs[BUFFER_BLOCK].asize; ++i)
+		bufrelease(rndr.work_bufs[BUFFER_BLOCK].item[i]);
+
+	parr_free(&rndr.work_bufs[BUFFER_SPAN]);
+	parr_free(&rndr.work_bufs[BUFFER_BLOCK]);
+}
+
+void
+ups_version(int *ver_major, int *ver_minor, int *ver_revision)
+{
+	*ver_major = UPSKIRT_VER_MAJOR;
+	*ver_minor = UPSKIRT_VER_MINOR;
+	*ver_revision = UPSKIRT_VER_REVISION;
 }
 
 /* vim: set filetype=c: */

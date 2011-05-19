@@ -21,6 +21,11 @@
 
 #include "buffer.h"
 
+#define UPSKIRT_VERSION "1.14.1"
+#define UPSKIRT_VER_MAJOR 1
+#define UPSKIRT_VER_MINOR 14
+#define UPSKIRT_VER_REVISION 1
+
 /********************
  * TYPE DEFINITIONS *
  ********************/
@@ -33,12 +38,13 @@ enum mkd_autolink {
 };
 
 enum mkd_extensions {
-	MKDEXT_LAX_EMPHASIS = (1 << 0),
+	MKDEXT_NO_INTRA_EMPHASIS = (1 << 0),
 	MKDEXT_TABLES = (1 << 1),
 	MKDEXT_FENCED_CODE = (1 << 2),
 	MKDEXT_AUTOLINK = (1 << 3),
 	MKDEXT_STRIKETHROUGH = (1 << 4),
 	MKDEXT_LAX_HTML_BLOCKS = (1 << 5),
+	MKDEXT_SPACE_HEADERS = (1 << 6),
 };
 
 /* mkd_renderer • functions for rendering parsed data */
@@ -103,9 +109,13 @@ is_safe_link(const char *link, size_t link_len);
  * EXPORTED FUNCTIONS *
  **********************/
 
-/* markdown • parses the input buffer and renders it into the output buffer */
+/* ups_markdown * parses the input buffer and renders it into the output buffer */
 extern void
 ups_markdown(struct buf *ob, struct buf *ib, const struct mkd_renderer *rndr, unsigned int extensions);
+
+/* ups_version * returns the library version as major.minor.rev */
+extern void
+ups_version(int *major, int *minor, int *revision);
 
 #endif
 
