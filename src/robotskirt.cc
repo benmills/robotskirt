@@ -20,26 +20,20 @@ static int ToHtml_After (eio_req *);
 #define READ_UNIT 1024
 #define OUTPUT_UNIT 64
  
-char *markdown(char *text)
+extern "C" char *markdown(char *text)
 {
   struct buf  *ib, *ob;
   struct mkd_renderer renderer;
-  size_t i, iterations = 1;
 
   /* performing markdown parsing */
   ob = bufnew(OUTPUT_UNIT);
   ib = bufnew(READ_UNIT);
   bufputs(ib, text);
 
-  for (i = 0; i < iterations; ++i) {
-    ob->size = 0;
-
-    ups_xhtml_renderer(&renderer, 0);
-    ups_markdown(ob, ib, &renderer, 0xFF);
-    ups_free_renderer(&renderer);
-  }
-
-  /* writing the result to stdout */
+  ob->size = 0;
+  ups_xhtml_renderer(&renderer, 0);
+  ups_markdown(ob, ib, &renderer, 0xFF);
+  ups_free_renderer(&renderer);
   char *output = ob->data;
 
   /* cleanup */
@@ -66,8 +60,8 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
   Local<Function> cb = Local<Function>::Cast(args[1]);
   request *sr = (request *) malloc(sizeof(struct request));
   sr->cb = Persistent<Function>::New(cb);
-  sr->in = (char *) malloc(in.length() + 1);
-  strncpy(sr->in, *in, in.length() + 1);
+  sr->in = (char *) malloc(in.length());
+  strncpy(sr->in, *in, in.length());
   sr->out = NULL;
 
   eio_custom(ToHtml, EIO_PRI_DEFAULT, ToHtml_After, sr);
@@ -101,31 +95,23 @@ static int ToHtml_After(eio_req *req) {
 
 static Handle<Value> ToHtmlSync(const Arguments &args) {
   HandleScope scope;
- 
-  if (args.Length() < 1) {
-    return ThrowException(Exception::TypeError(String::New("Bad argument")));
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New("String expected")));
   }
 
-  char *t;
+  char *out;
   String::Utf8Value in(args[0]);
-  t = markdown((char*)*in);
+  out = markdown(*in);
 
-  Handle<String> md = String::New(t);
+  Handle<String> md = String::New(out);
   return scope.Close(md);
 }
  
 extern "C" void init (Handle<Object> target) {
     HandleScope scope;
 
-    int ver_major;
-    int ver_minor;
-    int ver_revision;
-    ups_version(&ver_major, &ver_minor, &ver_revision);
-    char upsver[10];
-    sprintf(upsver, "%c.%c.%c", ver_major, ver_minor, ver_revision);
-
     target->Set(String::New("version"), String::New("0.2.0"));
-    target->Set(String::New("upskirtVersion"), String::New(upsver));
     NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
     NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
 }
