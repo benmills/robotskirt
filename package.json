@@ -5,7 +5,7 @@
 , "version": "0.2.1"
 , "lib": "./build/default"
 , "main": "./build/default/robotskirt"
-, "scripts": { "install": "node-waf configure build" }
+, "scripts": { "publish": "rm -r build && node-waf configure build" }
 , "repository" : { "type" : "git"
                  , "url" : "http://github.com/benmills/robotskirt.git"
                  }
