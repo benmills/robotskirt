@@ -1,6 +1,6 @@
 srcdir = '.'
 blddir = 'build'
-VERSION = '0.2.0'
+VERSION = '0.2.1'
  
 def set_options(opt):
   opt.tool_options('compiler_cxx')
