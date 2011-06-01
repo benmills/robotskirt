@@ -39,7 +39,7 @@ var sys = require('sys');
 var markdown = require('robotskirt');         
                                               
 fs.readFile('README.mkd', function (err, data) {
-  markdown.toHtml(data, function (html) {
+  markdown.toHtml(data.toString(), function (html) {
     sys.puts(html);            
   });
 });                                           
