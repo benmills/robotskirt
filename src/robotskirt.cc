@@ -25,6 +25,7 @@ struct request {
   char *in;
   char *out;
   size_t size;
+  int in_len;
 };
  
 static Handle<Value> ToHtmlAsync(const Arguments& args) {
@@ -38,7 +39,9 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
   Local<Function> callback = Local<Function>::Cast(args[1]);
   request *sr = (request *) malloc(sizeof(struct request));
   sr->callback = Persistent<Function>::New(callback);
-  sr->in = *in;
+  sr->in_len = strlen(*in);
+  sr->in = (char *) malloc(sr->in_len);
+  strncpy(sr->in, *in, sr->in_len);
   sr->out = NULL;
   sr->size = 0;
 
@@ -55,10 +58,10 @@ static int ToHtml(eio_req *req) {
 
   memset(&input_buf, 0x0, sizeof(struct buf));
   input_buf.data = sr->in;
-  input_buf.size = strlen(sr->in);
+  input_buf.size = sr->in_len;
 
   output_buf = bufnew(128);
-  bufgrow(output_buf, strlen(sr->in) * 1.2f);
+  bufgrow(output_buf, sr->in_len * 1.2f);
 
   ups_xhtml_renderer(&renderer, 0);
   ups_markdown(output_buf, &input_buf, &renderer, 0xFF);
