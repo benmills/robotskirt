@@ -1,6 +1,6 @@
 srcdir = '.'
 blddir = 'build'
-VERSION = '0.2.1'
+VERSION = '0.3.1'
  
 def set_options(opt):
   opt.tool_options('compiler_cxx')
@@ -17,7 +17,7 @@ def build(bld):
     src/markdown.c
     src/array.c
     src/buffer.c
-    src/xhtml.c """
+    src/html.c """
   upskirt.includes = "src/"
   upskirt.name = "upskirt"
   upskirt.target = "upskirt"
