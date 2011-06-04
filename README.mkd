@@ -39,7 +39,7 @@ var sys = require('sys');
 var markdown = require('robotskirt');         
                                               
 fs.readFile('README.mkd', function (err, data) {
-  markdown.toHtml(data, function (html) {
+  markdown.toHtml(data.toString(), function (html) {
     sys.puts(html);            
   });
 });                                           
@@ -51,7 +51,8 @@ If you would like to parse your markdown synchronously you can use the `toHtmlSy
 var html = markdown.toHtmlSync("*sync!*");
 ```
 
-Special Thanks
+Contributors
 ------------
 
 * [Phinze](https://github.com/phinze) 
+* [Tim Branyen](https://github.com/tbranyen) 

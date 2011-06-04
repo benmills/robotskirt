@@ -11,8 +11,8 @@ markdown.toHtml("# async", function (html) {
 sys.puts(markdown.toHtmlSync("# sync markdown parsing.."));
 
 //Open a file and parse it
-//fs.readFile('README.mkd', function (err, data) {
-  //markdown.toHtml(data, function (html) {
-    //sys.puts(html);
-  //});
-//});                                           
+fs.readFile('README.mkd', function (err, data) {
+  markdown.toHtml(data.toString(), function (html) {
+    sys.puts(html);
+  });
+});                                           

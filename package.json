@@ -2,7 +2,7 @@
 , "description": "A node wrapper for the awesome C markdown parsing library, upskirt."
 , "tags": ["upskirt", "robot", "markdown", "mkd"]
 , "author" : "Ben Mills <ben@bmdev.org>"
-, "version": "0.2.1"
+, "version": "0.2.2"
 , "lib": "./build/default"
 , "main": "./build/default/robotskirt"
 , "scripts": { "publish": "node-waf configure build" }

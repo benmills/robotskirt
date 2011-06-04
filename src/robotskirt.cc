@@ -1,6 +1,7 @@
 #include <v8.h>
 #include <node.h>
-#include <string.h>
+#include <node_buffer.h>
+#include <string>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -10,11 +11,25 @@ using namespace v8;
 
 extern "C" {
   #include"markdown.h"
-  #include"xhtml.h"
+  #include"html.h"
 }
 
-#define READ_UNIT 1024
 #define OUTPUT_UNIT 64
+
+// Credit: @samcday
+// http://sambro.is-super-awesome.com/2011/03/03/creating-a-proper-buffer-in-a-node-c-addon/ 
+#define MAKE_FAST_BUFFER(NG_SLOW_BUFFER, NG_FAST_BUFFER)      \
+  Local<Function> NG_JS_BUFFER = Local<Function>::Cast(       \
+    Context::GetCurrent()->Global()->Get(                     \
+      String::New("Buffer")));                                \
+                                                              \
+  Handle<Value> NG_JS_ARGS[3] = {                             \
+    NG_SLOW_BUFFER->handle_,                                  \
+    Integer::New(Buffer::Length(NG_SLOW_BUFFER)),             \
+    Integer::New(0)                                           \
+  };                                                          \
+                                                              \
+  NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(3, NG_JS_ARGS);
 
 static Handle<Value> ToHtmlAsync (const Arguments&);
 static int ToHtml (eio_req *);
@@ -22,14 +37,14 @@ static int ToHtml_After (eio_req *);
 
 struct request {
   Persistent<Function> callback;
-  char *in;
-  char *out;
-  size_t size;
-  int in_len;
+  string in;
+  string out;
+  int out_size;
 };
  
 static Handle<Value> ToHtmlAsync(const Arguments& args) {
   HandleScope scope;
+
   const char *usage = "usage: toHtml(markdown_string, callback)";
   if (args.Length() != 2) {
     return ThrowException(Exception::Error(String::New(usage)));
@@ -37,57 +52,70 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
 
   String::Utf8Value in(args[0]);
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  request *sr = (request *) malloc(sizeof(struct request));
+
+  request *sr = new request;
   sr->callback = Persistent<Function>::New(callback);
-  sr->in_len = strlen(*in);
-  sr->in = (char *) malloc(sr->in_len);
-  strncpy(sr->in, *in, sr->in_len);
-  sr->out = NULL;
-  sr->size = 0;
+  sr->in = *in;
 
   eio_custom(ToHtml, EIO_PRI_DEFAULT, ToHtml_After, sr);
   ev_ref(EV_DEFAULT_UC);
-  return Undefined();
+
+  return scope.Close( Undefined() );
 }
 
 static int ToHtml(eio_req *req) {
-  struct request *sr = (struct request *)req->data;
+  request *sr = static_cast<request *>(req->data);
+
   struct mkd_renderer renderer;
+  struct buf *input_buf, *output_buf;
 
-  struct buf input_buf, *output_buf;
+  // Create input buffer from string
+  input_buf = bufnew(sr->in.size());
+  bufput(input_buf, sr->in.c_str(), sr->in.size());
 
-  memset(&input_buf, 0x0, sizeof(struct buf));
-  input_buf.data = sr->in;
-  input_buf.size = sr->in_len;
+  // Create output buffer and reset size to 0
+	output_buf = bufnew(OUTPUT_UNIT);
+  output_buf->size = 0;
 
-  output_buf = bufnew(128);
-  bufgrow(output_buf, sr->in_len * 1.2f);
+  // Use new Upskirt HTML to render
+  upshtml_renderer(&renderer, 0);
+  ups_markdown(output_buf, input_buf, &renderer, ~0);
+  upshtml_free_renderer(&renderer);
 
-  ups_xhtml_renderer(&renderer, 0);
-  ups_markdown(output_buf, &input_buf, &renderer, 0xFF);
-  ups_free_renderer(&renderer);
-
-  //Handle<String> md = String::New(output_buf->data, output_buf->size);
   sr->out = output_buf->data;
-  sr->size = output_buf->size;
+  sr->out_size = output_buf->size;
 
-  /* cleanup */
+	/* cleanup */
+	bufrelease(input_buf);
+  bufrelease(output_buf);
+
   return 0;
 }
 
 static int ToHtml_After(eio_req *req) {
   HandleScope scope;
+
   ev_unref(EV_DEFAULT_UC);
-  struct request *sr = (struct request *)req->data;
+  request *sr = static_cast<request *>(req->data);
   Local<Value> argv[1];
 
-  argv[0] = String::New(sr->out, sr->size);
+  // Set contents
+  const char* contents = sr->out.c_str();
+
+  // Create and assign fast buffer to arguments array
+  Buffer* buffer = Buffer::New(const_cast<char *>(contents), sr->out_size);
+  Local<Object> fastBuffer;
+  MAKE_FAST_BUFFER(buffer, fastBuffer);
+  argv[0] = fastBuffer;
+
+  // Invoke callback function with html argument
   TryCatch try_catch;
   sr->callback->Call(Context::GetCurrent()->Global(), 1, argv);
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
 
+  /* cleanup */
   sr->callback.Dispose();
   free(sr);
   return 0;
@@ -96,36 +124,49 @@ static int ToHtml_After(eio_req *req) {
 static Handle<Value> ToHtmlSync(const Arguments &args) {
   HandleScope scope;
 
+  const char *usage = "usage: toHtmlSync(markdown_string)";
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New("String expected")));
+    return ThrowException(Exception::TypeError(String::New(usage)));
   }
 
-  String::Utf8Value in(args[0]);
-
   struct mkd_renderer renderer;
-  struct buf input_buf, *output_buf;
+  struct buf *input_buf, *output_buf;
 
-  memset(&input_buf, 0x0, sizeof(struct buf));
-  input_buf.data = *in;
-  input_buf.size = strlen(*in);
+  String::Utf8Value utf8_in(args[0]);
+  string in = *utf8_in;
+  string out;
 
-  output_buf = bufnew(128);
-  bufgrow(output_buf, strlen(*in) * 1.2f);
+  // Create input buffer from string
+  input_buf = bufnew(in.size());
+  bufput(input_buf, in.c_str(), in.size());
 
-  ups_xhtml_renderer(&renderer, 0);
-  ups_markdown(output_buf, &input_buf, &renderer, 0xFF);
-  ups_free_renderer(&renderer);
-  Handle<String> md = String::New(output_buf->data, output_buf->size);
+  // Create output buffer and reset size to 0
+  output_buf = bufnew(OUTPUT_UNIT);
+  output_buf->size = 0;
 
-  /* cleanup */
+  // Use new Upskirt HTML to render
+  upshtml_renderer(&renderer, 0);
+  ups_markdown(output_buf, input_buf, &renderer, ~0);
+  upshtml_free_renderer(&renderer);
+
+  out = output_buf->data;
+
+  // Create and assign fast buffer to arguments array
+  int bufferLength = out.size();
+  Buffer* buffer = Buffer::New(const_cast<char *>(out.c_str()), bufferLength);
+  Local<Object> fastBuffer;
+  MAKE_FAST_BUFFER(buffer, fastBuffer);
+
+	/* cleanup */
+  bufrelease(input_buf);
   bufrelease(output_buf);
-  return scope.Close(md);
+  return scope.Close(fastBuffer);
 }
  
 extern "C" void init (Handle<Object> target) {
-    HandleScope scope;
+  HandleScope scope;
 
-    target->Set(String::New("version"), String::New("0.2.1"));
-    NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
-    NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
+  target->Set(String::New("version"), String::New("0.2.2"));
+  NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
+  NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
 }
