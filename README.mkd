@@ -28,7 +28,7 @@ var markdown = require('robotskirt');
 markdown.toHtml('# Hello World', function (html) {
   sys.puts(html);
 });
-// '<h1>Hellow World</h1>\n'
+// '<h1>Hello World</h1>\n'
 ```
 
 A common use case might be opening a markdown file and then parsing it into HTML.
