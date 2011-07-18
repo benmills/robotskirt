@@ -1,7 +1,7 @@
 Robotskirt
 =============
 
-Robotskirt is a simple node binding for the [upskirt](https://github.com/tanoku/upskirt) markdown parser. It was inspired by the redcarpet gem [released by github](https://github.com/blog/832-rolling-out-the-redcarpet). Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.
+Robotskirt is a simple node binding for the [sundown](https://github.com/tanoku/sundown) markdown parser. It was inspired by the redcarpet gem [released by github](https://github.com/blog/832-rolling-out-the-redcarpet). Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.
 
 Install
 -------------
