@@ -32,7 +32,7 @@ extern "C" {
   NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(3, NG_JS_ARGS);
 
 static Handle<Value> ToHtmlAsync (const Arguments&);
-static int ToHtml (eio_req *);
+static void ToHtml (eio_req *);
 static int ToHtml_After (eio_req *);
 
 struct request {
@@ -63,7 +63,7 @@ static Handle<Value> ToHtmlAsync(const Arguments& args) {
   return scope.Close( Undefined() );
 }
 
-static int ToHtml(eio_req *req) {
+static void ToHtml(eio_req *req) {
   request *sr = static_cast<request *>(req->data);
 
   struct mkd_renderer renderer;
@@ -88,8 +88,6 @@ static int ToHtml(eio_req *req) {
 	/* cleanup */
 	bufrelease(input_buf);
   bufrelease(output_buf);
-
-  return 0;
 }
 
 static int ToHtml_After(eio_req *req) {
