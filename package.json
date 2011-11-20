@@ -3,8 +3,8 @@
 , "tags": ["sundown", "upskirt", "robot", "markdown", "mkd"]
 , "author" : "Ben Mills <ben@bmdev.org>"
 , "version": "0.2.2"
-, "lib": "./build/default"
-, "main": "./build/default/robotskirt"
+, "lib": "./build/Release"
+, "main": "./build/Release/robotskirt"
 , "scripts": { "publish": "node-waf configure build" }
 , "repository" : { "type" : "git"
                  , "url" : "http://github.com/benmills/robotskirt.git"

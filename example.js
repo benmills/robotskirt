@@ -1,5 +1,4 @@
-var markdown = require('./build/default/robotskirt');
-var sys = require('sys');
+var markdown = require('./build/Release/robotskirt');
 var fs = require('fs');                       
 
 // Simple examples
