@@ -9,5 +9,5 @@
 , "repository" : { "type" : "git"
                  , "url" : "http://github.com/benmills/robotskirt.git"
                  }
-, "bugs" : { "web" : "http://github.com/benmills/robotskirt/issues" }
+, "bugs" : { "url" : "http://github.com/benmills/robotskirt/issues" }
 }
