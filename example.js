@@ -5,14 +5,14 @@ var fs = require('fs');
 // Simple examples
 
 markdown.toHtml("# async", function (html) {
-  sys.puts(html);
+  process.stdout.write(html);
 });
 
-sys.puts(markdown.toHtmlSync("# sync markdown parsing.."));
+process.stdout.write(markdown.toHtmlSync("# sync markdown parsing.."));
 
 //Open a file and parse it
 fs.readFile('README.mkd', function (err, data) {
   markdown.toHtml(data.toString(), function (html) {
-    sys.puts(html);
+    process.stdout.write(html);
   });
 });                                           
