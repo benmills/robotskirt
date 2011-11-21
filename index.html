@@ -1,0 +1,443 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="http://fonts.googleapis.com/css?family=Lekton" rel="stylesheet" type="text/css">
+    <style type="text/css">body {
+  background: #dddddd;
+  color: #565656;
+  font-family: Lucida Grande, Helvetica;
+  margin: 0;
+}
+.center {
+  width: 800px;
+  margin-right: auto;
+  margin-left: auto;
+}
+#main {
+  margin: 30px auto;
+}
+pre, code {
+  font-family: Monaco;
+  font-size: 12px;
+  overflow-x: scroll;
+}
+p code {
+  background: #efefef;
+}
+pre {
+  background: #efefef;
+  padding: 10px;
+  margin: 20px 0;
+  color: #476167;
+}
+p {
+  line-height: 23px;
+}
+h2 {
+  margin: 50px 0 0 0;
+  padding: 0 0 10px 0;
+  border-bottom: 3px solid #e5e5e5;
+  color: #2a2a2a;
+  font-weight: normal;
+}
+h1 {
+  font-size: 60px;
+  letter-spacing: -1px;
+  font-weight: normal;
+}
+a {
+  color: #2874db;
+}
+ul {
+  list-style: square;
+  padding: 0 0 0 20px;
+}
+footer {
+  background: #212426;
+  color: #FFF;
+  font-size: 10px;
+  padding: 10px 0;
+  color: #94a6af;
+}
+footer h2 {
+  border: none;
+  color: #FFF;
+  margin: 20px 0 0 0;
+}
+footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+footer p {
+  margin: 0;
+}
+footer a {
+  color: #94a6af;
+}
+footer p, footer h2, footer ul {
+  width: 800px;
+  margin-right: auto;
+  margin-left: auto;
+}
+header {
+  padding: 20px 0 20px 10px;
+  color: #516a76;
+  background: #e4e7e9;
+  border-bottom: 6px solid #ebebeb;
+}
+header h1 {
+  display: inline;
+  color: #14262f;
+  font-family: 'Lekton', sans-serif;
+}
+header div.center div {
+  float: right;
+  background: #FFF;
+  margin: 12px 10px 0 0;
+  padding: 10px;
+  display: inline;
+  border-radius: 5px;
+}
+header div.center div code, header div.center div pre {
+  font-size: 14px;
+}
+header a {
+  text-decoration: none;
+}
+body .hll {
+  background-color: #ffffcc;
+}
+body .c {
+  color: #408080;
+  font-style: italic;
+}
+/* Comment */
+body .err {
+  border: 1px solid #ff0000;
+}
+/* Error */
+body .k {
+  color: #954121;
+}
+/* Keyword */
+body .o {
+  color: #666666;
+}
+/* Operator */
+body .cm {
+  color: #408080;
+  font-style: italic;
+}
+/* Comment.Multiline */
+body .cp {
+  color: #bc7a00;
+}
+/* Comment.Preproc */
+body .c1 {
+  color: #408080;
+  font-style: italic;
+}
+/* Comment.Single */
+body .cs {
+  color: #408080;
+  font-style: italic;
+}
+/* Comment.Special */
+body .gd {
+  color: #a00000;
+}
+/* Generic.Deleted */
+body .ge {
+  font-style: italic;
+}
+/* Generic.Emph */
+body .gr {
+  color: #ff0000;
+}
+/* Generic.Error */
+body .gh {
+  color: #000080;
+  font-weight: bold;
+}
+/* Generic.Heading */
+body .gi {
+  color: #00a000;
+}
+/* Generic.Inserted */
+body .go {
+  color: #808080;
+}
+/* Generic.Output */
+body .gp {
+  color: #000080;
+  font-weight: bold;
+}
+/* Generic.Prompt */
+body .gs {
+  font-weight: bold;
+}
+/* Generic.Strong */
+body .gu {
+  color: #800080;
+  font-weight: bold;
+}
+/* Generic.Subheading */
+body .gt {
+  color: #0040d0;
+}
+/* Generic.Traceback */
+body .kc {
+  color: #954121;
+}
+/* Keyword.Constant */
+body .kd {
+  color: #954121;
+  font-weight: bold;
+}
+/* Keyword.Declaration */
+body .kn {
+  color: #954121;
+  font-weight: bold;
+}
+/* Keyword.Namespace */
+body .kp {
+  color: #954121;
+}
+/* Keyword.Pseudo */
+body .kr {
+  color: #954121;
+  font-weight: bold;
+}
+/* Keyword.Reserved */
+body .kt {
+  color: #b00040;
+}
+/* Keyword.Type */
+body .m {
+  color: #666666;
+}
+/* Literal.Number */
+body .s {
+  color: #219161;
+}
+/* Literal.String */
+body .na {
+  color: #7d9029;
+}
+/* Name.Attribute */
+body .nb {
+  color: #954121;
+}
+/* Name.Builtin */
+body .nc {
+  color: #0000FF;
+  font-weight: bold;
+}
+/* Name.Class */
+body .no {
+  color: #880000;
+}
+/* Name.Constant */
+body .nd {
+  color: #aa22ff;
+}
+/* Name.Decorator */
+body .ni {
+  color: #999999;
+  font-weight: bold;
+}
+/* Name.Entity */
+body .ne {
+  color: #D2413A;
+  font-weight: bold;
+}
+/* Name.Exception */
+body .nf {
+  color: #0000ff;
+}
+/* Name.Function */
+body .nl {
+  color: #a0a000;
+}
+/* Name.Label */
+body .nn {
+  color: #0000FF;
+  font-weight: bold;
+}
+/* Name.Namespace */
+body .nt {
+  color: #954121;
+  font-weight: bold;
+}
+/* Name.Tag */
+body .nv {
+  color: #19469d;
+}
+/* Name.Variable */
+body .ow {
+  color: #AA22FF;
+  font-weight: bold;
+}
+/* Operator.Word */
+body .w {
+  color: #bbbbbb;
+}
+/* Text.Whitespace */
+body .mf {
+  color: #666666;
+}
+/* Literal.Number.Float */
+body .mh {
+  color: #666666;
+}
+/* Literal.Number.Hex */
+body .mi {
+  color: #666666;
+}
+/* Literal.Number.Integer */
+body .mo {
+  color: #666666;
+}
+/* Literal.Number.Oct */
+body .sb {
+  color: #219161;
+}
+/* Literal.String.Backtick */
+body .sc {
+  color: #219161;
+}
+/* Literal.String.Char */
+body .sd {
+  color: #219161;
+  font-style: italic;
+}
+/* Literal.String.Doc */
+body .s2 {
+  color: #219161;
+}
+/* Literal.String.Double */
+body .se {
+  color: #BB6622;
+  font-weight: bold;
+}
+/* Literal.String.Escape */
+body .sh {
+  color: #219161;
+}
+/* Literal.String.Heredoc */
+body .si {
+  color: #BB6688;
+  font-weight: bold;
+}
+/* Literal.String.Interpol */
+body .sx {
+  color: #954121;
+}
+/* Literal.String.Other */
+body .sr {
+  color: #bb6688;
+}
+/* Literal.String.Regex */
+body .s1 {
+  color: #219161;
+}
+/* Literal.String.Single */
+body .ss {
+  color: #19469d;
+}
+/* Literal.String.Symbol */
+body .bp {
+  color: #954121;
+}
+/* Name.Builtin.Pseudo */
+body .vc {
+  color: #19469d;
+}
+/* Name.Variable.Class */
+body .vg {
+  color: #19469d;
+}
+/* Name.Variable.Global */
+body .vi {
+  color: #19469d;
+}
+/* Name.Variable.Instance */
+body .il {
+  color: #666666;
+}
+/* Literal.Number.Integer.Long */
+</style>
+  </head>
+
+  <body>
+    <header><div class="center"><div><a href="http://github.com/benmills/robotskirt">Code on Github</a></div><div><code>npm install robotskirt</code></div><h1>Robotskirt</h1><p>Robotskirt is a simple node binding for the <a href="https://github.com/tanoku/sundown">sundown</a> markdown parser. It was inspired by the redcarpet gem <a href="https://github.com/blog/832-rolling-out-the-redcarpet">released by github</a>. Eventually robotskirt should mirror the feature set of redcarpet, currently it is lacking flags.</p></div></header><div class="center" id="main">
+      
+
+
+
+<h2>Install</h2>
+
+<p>The best way to install robotskirt is by using <a href="https://github.com/isaacs/npm">npm</a>. If you want to install it globally, remember to include the -g flag.</p>
+
+<div class="highlight"><pre>npm install robotskirt
+</pre></div>
+
+
+<p>If you would like to compile it, you can use node's WAF wapper. Read more about how node C/C++ addons work in the <a href="http://nodejs.org/docs/v0.4.7/api/addons.html">node docs</a>.</p>
+
+<div class="highlight"><pre>node-waf configure build
+</pre></div>
+
+
+<h2>Usage</h2>
+
+<p>Currently robotskirt has one main function, <code>toHtml</code>, that will take a string of markdown and a callback that will be passed the parsed HTML. </p>
+
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">markdown</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'robotskirt'</span><span class="p">);</span>
+<span class="nx">markdown</span><span class="p">.</span><span class="nx">toHtml</span><span class="p">(</span><span class="s1">'# Hello World'</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">html</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">sys</span><span class="p">.</span><span class="nx">puts</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>
+<span class="p">});</span>
+<span class="c1">// '&lt;h1&gt;Hello World&lt;/h1&gt;\n'</span>
+</pre></div>
+
+
+<p>A common use case might be opening a markdown file and then parsing it into HTML.</p>
+
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">fs</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'fs'</span><span class="p">);</span>                       
+<span class="kd">var</span> <span class="nx">sys</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'sys'</span><span class="p">);</span>                     
+<span class="kd">var</span> <span class="nx">markdown</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'robotskirt'</span><span class="p">);</span>         
+
+<span class="nx">fs</span><span class="p">.</span><span class="nx">readFile</span><span class="p">(</span><span class="s1">'README.mkd'</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">markdown</span><span class="p">.</span><span class="nx">toHtml</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">toString</span><span class="p">(),</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">html</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">sys</span><span class="p">.</span><span class="nx">puts</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>            
+  <span class="p">});</span>
+<span class="p">});</span>                                           
+</pre></div>
+
+
+<p>If you would like to parse your markdown synchronously you can use the <code>toHtmlSync</code> function.</p>
+
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">html</span> <span class="o">=</span> <span class="nx">markdown</span><span class="p">.</span><span class="nx">toHtmlSync</span><span class="p">(</span><span class="s2">"*sync!*"</span><span class="p">);</span>
+</pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </div><footer><div class="center"><h2>Contributors</h2><ul>
+<li><a href="https://github.com/phinze">Phinze</a> </li>
+<li><a href="https://github.com/tbranyen">Tim Branyen</a> </li>
+</ul><h2>License</h2><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p><p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p><p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p></div></footer>
+  </body>
+</html>
