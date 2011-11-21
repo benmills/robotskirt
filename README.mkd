@@ -56,6 +56,7 @@ Contributors
 
 * [Phinze](https://github.com/phinze) 
 * [Tim Branyen](https://github.com/tbranyen) 
+* [Ryan Graham](https://github.com/rmg)
 
 License
 ------------
