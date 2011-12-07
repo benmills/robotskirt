@@ -150,15 +150,12 @@ static Handle<Value> ToHtmlSync(const Arguments &args) {
   out = output_buf->data;
 
   // Create and assign fast buffer to arguments array
-  int bufferLength = out.size();
-  Buffer* buffer = Buffer::New(const_cast<char *>(out.c_str()), bufferLength);
-  Local<Object> fastBuffer;
-  MAKE_FAST_BUFFER(buffer, fastBuffer);
+  Handle<String> md = String::New(output_buf->data, output_buf->size);
 
 	/* cleanup */
   bufrelease(input_buf);
   bufrelease(output_buf);
-  return scope.Close(fastBuffer);
+  return scope.Close(md);
 }
  
 extern "C" void init (Handle<Object> target) {
