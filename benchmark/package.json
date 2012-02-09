@@ -1,0 +1,14 @@
+{
+  "name": "robotskirt-benchmarks",
+  "description": "Benchmarking robotskirt vs other markdown libs",
+  "tags": ["sundown", "upskirt", "robot", "markdown", "mkd"],
+  "author" : "Ben Mills <ben@bmdev.org>",
+  "version": "0.0.1",
+  "engines": { "node": "~0.6" },
+  "devDependencies": {
+    "discount": ">= 0.2.3",
+    "marked": ">= 0.1.9",
+    "showdown": ">= 0.0.1",
+    "markdown": ">= 0.3.1"
+  }
+}

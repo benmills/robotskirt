@@ -1,0 +1,12 @@
+#!/bin/bash
+
+cd $(dirname "$0")
+
+cat README
+
+rm -rf tests
+cp -r original tests
+
+node fix.js
+
+cp new/* -t tests
