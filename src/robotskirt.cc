@@ -158,10 +158,13 @@ static Handle<Value> ToHtmlSync(const Arguments &args) {
   return scope.Close(md);
 }
  
-extern "C" void init (Handle<Object> target) {
-  HandleScope scope;
+extern "C" {
+  void init (Handle<Object> target) {
+    HandleScope scope;
 
-  target->Set(String::New("version"), String::New("0.2.2"));
-  NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
-  NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
+    target->Set(String::New("version"), String::New("0.2.2"));
+    NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
+    NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
+  }
+  NODE_MODULE(robotskirt, init)
 }
