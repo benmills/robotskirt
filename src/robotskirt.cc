@@ -162,9 +162,18 @@ extern "C" {
   void init (Handle<Object> target) {
     HandleScope scope;
 
-    target->Set(String::New("version"), String::New("0.2.2"));
+    target->Set(String::NewSymbol("version"), String::New("0.2.2"));
     NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
     NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
+    
+    //Set extensions
+    target->Set(String::NewSymbol("EXT_AUTOLINK"), Integer::New(MKDEXT_AUTOLINK));
+    target->Set(String::NewSymbol("EXT_FENCED_CODE"), Integer::New(MKDEXT_FENCED_CODE));
+    target->Set(String::NewSymbol("EXT_LAX_HTML_BLOCKS"), Integer::New(MKDEXT_LAX_HTML_BLOCKS));
+    target->Set(String::NewSymbol("EXT_NO_INTRA_EMPHASIS"), Integer::New(MKDEXT_NO_INTRA_EMPHASIS));
+    target->Set(String::NewSymbol("EXT_SPACE_HEADERS"), Integer::New(MKDEXT_SPACE_HEADERS));
+    target->Set(String::NewSymbol("EXT_STRIKETHROUGH"), Integer::New(MKDEXT_STRIKETHROUGH));
+    target->Set(String::NewSymbol("EXT_TABLES"), Integer::New(MKDEXT_TABLES));
   }
   NODE_MODULE(robotskirt, init)
 }
