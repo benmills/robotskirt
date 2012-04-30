@@ -43,26 +43,44 @@ struct request {
 // Renderer functions //
 ////////////////////////
 
-static Handle<Value> newRenderer(const Arguments& args) {
+class Renderer : public ObjectWrap {
+protected:
+  mkd_renderer* const ptr;
+public:
+  inline Renderer() : ptr(new mkd_renderer) {}
+  inline mkd_renderer* getHandle() {return ptr;}
+  inline ~Renderer() {
+    delete ptr;
+  }
+  static Handle<Value> newInstance(const Arguments& args);
+};
+
+class HtmlRenderer : public Renderer {
+public:
+  inline HtmlRenderer(unsigned int flags) {
+    upshtml_renderer(ptr, flags);
+  }
+  inline ~HtmlRenderer() {
+    upshtml_free_renderer(ptr);
+  }
+  static Handle<Value> newInstance(const Arguments& args);
+};
+
+Handle<Value> Renderer::newInstance(const Arguments& args) {
   HandleScope scope;
-  
-  args.This()->SetPointerInInternalField(0, new mkd_renderer); //TODO: don't wrap mkd_renderer directly
-  return args.This();
+
+  (new Renderer)->Wrap(args.This());
+  return scope.Close(args.This());
 }
 
-static Handle<Value> stdHtmlRenderer(const Arguments& args) {
+Handle<Value> HtmlRenderer::newInstance(const Arguments& args) {
   HandleScope scope;
 
   unsigned int flags = 0;
   if (args.Length() >= 1) flags = args[0]->Uint32Value(); //FIXME: introduce method, allow list of flags
 
-  Local<Function> proto = Local<Function>::Cast(args.Data());
-  Local<Object> obj = proto->NewInstance();
-  mkd_renderer* rend = static_cast<mkd_renderer*>( obj->GetPointerFromInternalField(0) );
-
-  upshtml_renderer(rend, flags);
-
-  return scope.Close(obj);
+  (new HtmlRenderer(flags))->Wrap(args.This());
+  return scope.Close(args.This());
 }
 
 
@@ -80,43 +98,46 @@ static void outputBufferFree(char* data, void* hint) {
 
 static Handle<Value> markdown(const Arguments& args) {
   HandleScope scope;
+  try {
+    //Check arguments
+    if (args.Length() < 3 || (!args[0]->IsObject()) || (!args[2]->IsFunction()))
+      throw Exception::TypeError(String::New("usage: markdown(renderer, input, callback, [extensions])"));
 
-  //Check arguments
-  if (args.Length() < 3)
-    return ThrowException(Exception::TypeError(String::New("usage: markdown(renderer, input, callback, [extensions])")));
+    //Extract arguments
+    Local<Object> rend = args[0]->ToObject();
+    String::Utf8Value in(args[1]);
+    Local<Function> callback = Local<Function>::Cast(args[2]);
+    unsigned int flags = 0;
+    if (args.Length() >= 4) flags = args[3]->Uint32Value(); //FIXME
 
-  //Extract arguments
-  Local<Object> rend = args[0]->ToObject();
-  String::Utf8Value in(args[1]);
-  Local<Function> callback = Local<Function>::Cast(args[2]);
-  unsigned int flags = 0;
-  if (args.Length() >= 4) flags = args[3]->Uint32Value(); //FIXME
+    //Make request
+    request *sr = new request;
+    sr->callback = Persistent<Function>::New(callback);
+    sr->in = *in;
+    sr->flags = flags;
+    sr->renderer = Persistent<Object>::New(rend);
 
-  //Make request
-  request *sr = new request;
-  sr->callback = Persistent<Function>::New(callback);
-  sr->in = *in;
-  sr->flags = flags;
-  sr->renderer = Persistent<Object>::New(rend);
+    //Call process
+    eio_custom(markdownProcess, EIO_PRI_DEFAULT, markdownAfter, sr);
+    ev_ref(EV_DEFAULT_UC);
 
-  //Call process
-  eio_custom(markdownProcess, EIO_PRI_DEFAULT, markdownAfter, sr);
-  ev_ref(EV_DEFAULT_UC);
-
-  return scope.Close( Undefined() );
+    return scope.Close( Undefined() );
+  } catch (Handle<Value> h) {
+    return ThrowException(h);
+  } catch (exception e) {
+    return ThrowException(Exception::Error(String::New(e.what())));
+  }
 }
 
 static void markdownProcess(eio_req *req) {
   //Extract request and renderer
   request *sr = static_cast<request *>(req->data);
-  void* rendptr = sr->renderer->GetPointerFromInternalField(0);
-  mkd_renderer* rend = static_cast<mkd_renderer*>(rendptr);
-
-  struct buf *input_buf;
+  Renderer* rwrap = Renderer::Unwrap<Renderer>(sr->renderer);
+  mkd_renderer* rend = rwrap->getHandle();
 
   // Create input buffer from string
-  input_buf = bufnew(sr->in.size());
-//  try {
+  struct buf *input_buf = bufnew(sr->in.size());
+//  try {FIXME: RAII
     bufput(input_buf, sr->in.c_str(), sr->in.size());
 
     // Create output buffer and reset size to 0
@@ -136,67 +157,66 @@ static int markdownAfter(eio_req *req) {
 
   ev_unref(EV_DEFAULT_UC);
   request *sr = static_cast<request*>(req->data);
-//  try {
-    Local<Value> argv[1];
+  Local<Value> argv[1];
 
-    // Create and assign fast buffer to arguments array
-    Buffer* buffer = Buffer::New(const_cast<char *>(sr->out->data), sr->out->size, outputBufferFree, sr->out);
-    Local<Object> fastBuffer;
-    MAKE_FAST_BUFFER(buffer, fastBuffer);
-    argv[0] = fastBuffer;
+  // Create and assign fast buffer to arguments array
+  Buffer* buffer = Buffer::New(const_cast<char *>(sr->out->data), sr->out->size, outputBufferFree, sr->out);
+  Local<Object> fastBuffer;
+  MAKE_FAST_BUFFER(buffer, fastBuffer);
+  argv[0] = fastBuffer;
 
-    // Invoke callback function with html argument
-    TryCatch try_catch;
-    sr->callback->Call(Context::GetCurrent()->Global(), 1, argv);
-    if (try_catch.HasCaught()) {
-      FatalException(try_catch);
-    }
+  // Invoke callback function with html argument
+  TryCatch try_catch;
+  sr->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
 
-    /* cleanup */
-    sr->callback.Dispose();
-//  } finally {
-    delete sr;
-//  }
-    return 0;
+  /* cleanup */
+  sr->callback.Dispose(); //FIXME: should we put this into a finally (RAII)?
+  return 0;
 }
 
 static Handle<Value> markdownSync(const Arguments &args) {
   HandleScope scope;
+  try {
+    //Check arguments
+    if (args.Length() < 2 || (!args[0]->IsObject()))
+      throw Exception::TypeError(String::New("usage: markdown(renderer, input, [extensions])"));
 
-  const char *usage = "usage: toHtmlSync(markdown_string)";
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(usage)));
+    //Extract arguments
+    Renderer* rwrap = Renderer::Unwrap<Renderer>(args[0]->ToObject());
+    mkd_renderer* rend = rwrap->getHandle();
+    String::Utf8Value instr (args[1]);
+    unsigned int flags = 0;
+    if (args.Length() >= 3) flags = args[2]->Uint32Value(); //FIXME
+
+    // Create input buffer from string
+    struct buf *input_buf = bufnew(instr.length());
+  //  try {FIXME: RAII
+      bufput(input_buf, *instr, instr.length());
+
+      // Create output buffer and reset size to 0
+      struct buf *out = bufnew(OUTPUT_UNIT);
+      out->size = 0;
+
+      // Render!
+      ups_markdown(out, input_buf, rend, flags);
+      
+      // Create and return fast buffer to result
+      Buffer* buffer = Buffer::New(const_cast<char *>(out->data), out->size, outputBufferFree, out);
+      Local<Object> fastBuffer;
+      MAKE_FAST_BUFFER(buffer, fastBuffer);
+  //  } finally {
+      //Free input buffer
+      bufrelease(input_buf);
+  //  }
+      return scope.Close(fastBuffer);
+  } catch (Handle<Value> h) {
+    return ThrowException(h);
+  } catch (exception e) {
+    return ThrowException(Exception::Error(String::New(e.what())));
   }
-
-  struct mkd_renderer renderer;
-  struct buf *input_buf, *output_buf;
-
-  String::Utf8Value utf8_in(args[0]);
-  string in = *utf8_in;
-  string out;
-
-  // Create input buffer from string
-  input_buf = bufnew(in.size());
-  bufput(input_buf, in.c_str(), in.size());
-
-  // Create output buffer and reset size to 0
-  output_buf = bufnew(OUTPUT_UNIT);
-  output_buf->size = 0;
-
-  // Use new Upskirt HTML to render
-  upshtml_renderer(&renderer, 0);
-  ups_markdown(output_buf, input_buf, &renderer, ~0);
-  upshtml_free_renderer(&renderer);
-
-  out = output_buf->data;
-
-  // Create and assign fast buffer to arguments array
-  Handle<String> md = String::New(output_buf->data, output_buf->size);
-
-  /* cleanup */
-  bufrelease(input_buf);
-  bufrelease(output_buf);
-  return scope.Close(md);
 }
 
 
@@ -225,18 +245,21 @@ extern "C" {
     //TODO: html renderer flags
 
     //Renderer class
-    Local<FunctionTemplate> rendL = FunctionTemplate::New(&newRenderer);
+    Local<FunctionTemplate> rendL = FunctionTemplate::New(&Renderer::newInstance);
     Persistent<FunctionTemplate> rend = Persistent<FunctionTemplate>::New(rendL);
     rend->InstanceTemplate()->SetInternalFieldCount(1);
     rend->SetClassName(String::NewSymbol("Renderer"));
 
     target->Set(String::NewSymbol("Renderer"), rend->GetFunction());
 
-    //Standard HTML renderer factory function
-    Local<FunctionTemplate> stdrendL = FunctionTemplate::New(&stdHtmlRenderer, rend->GetFunction());
-    Persistent<FunctionTemplate> stdrend = Persistent<FunctionTemplate>::New(stdrendL);
+    //Standard HTML renderer class
+    Local<FunctionTemplate> htmlrendL = FunctionTemplate::New(&HtmlRenderer::newInstance);
+    Persistent<FunctionTemplate> htmlrend = Persistent<FunctionTemplate>::New(htmlrendL);
+    htmlrend->InstanceTemplate()->SetInternalFieldCount(1);
+    htmlrend->Inherit(rend);
+    htmlrend->SetClassName(String::NewSymbol("HtmlRenderer"));
 
-    target->Set(String::NewSymbol("htmlRenderer"), stdrend->GetFunction());
+    target->Set(String::NewSymbol("HtmlRenderer"), htmlrend->GetFunction());
   }
   NODE_MODULE(robotskirt, init)
 }
