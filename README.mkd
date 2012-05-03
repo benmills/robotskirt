@@ -43,15 +43,15 @@ markdown.toHtml('# Hello World', function (html) {
 A common use case might be opening a markdown file and then parsing it into HTML.
 
 ```javascript
-var fs = require('fs');                       
-var sys = require('sys');                     
-var markdown = require('robotskirt');         
-                                              
+var fs = require('fs');
+var sys = require('sys');
+var markdown = require('robotskirt');
+
 fs.readFile('README.mkd', function (err, data) {
   markdown.toHtml(data.toString(), function (html) {
-    sys.puts(html);            
+    sys.puts(html);
   });
-});                                           
+});
 ```
 
 If you would like to parse your markdown synchronously you can use the `toHtmlSync` function.
@@ -62,9 +62,10 @@ var html = markdown.toHtmlSync("*sync!*");
 
 ## Contributors
 
-* [Phinze](https://github.com/phinze) 
-* [Tim Branyen](https://github.com/tbranyen) 
+* [Phinze](https://github.com/phinze)
+* [Tim Branyen](https://github.com/tbranyen)
 * [Ryan Graham](https://github.com/rmg)
+* [Xavier Mendez](https://github.com/jmendeth)
 
 ## License
 
