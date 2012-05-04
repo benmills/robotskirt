@@ -12,11 +12,12 @@ the entire official markdown test suit 1000 times.
 
 ```bash
 $ node index.js --bench
-robotskirt completed in 1849ms.
-marked completed in 5158ms.
-discount completed in 7661ms.
-showdown (reuse converter) completed in 13124ms.
-showdown (new converter) completed in 15799ms.
+robotskirt (reuse renderer) completed in 1794ms.
+robotskirt (new renderer) completed in 1848ms.
+marked completed in 5517ms.
+discount completed in 5866ms.
+showdown (reuse converter) completed in 13789ms.
+showdown (new converter) completed in 17161ms.
 ```
 
 ## Install
