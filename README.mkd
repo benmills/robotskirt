@@ -38,8 +38,8 @@ node-waf configure build
 
 ## Usage
 
-First of all, you need to construct a `new HtmlRenderer`.  
-Then, call the `markdown` function passing your renderer as a first argument,
+First of all, you need to construct a `new HtmlRenderer()`.  
+Then, call the `markdown` function passing as arguments your renderer,  
 the markdown code to parse, and a callback to handle the result:
 
 ```javascript
@@ -73,16 +73,16 @@ so you may convert it to text using `toString()`. See the last example.
 
 ### Markdown extension flags
 
-You can pass some flags to Sundown by passing them as the last argument:
+You can pass some flags to Sundown by passing them as an (optional) last argument:
 
 ```javascript
 var flags = rs.EXT_FENCED_CODE & rs.EXT_AUTOLINK;
-rs.markdown(renderer, 'Wow, this becomes http://autolink.ed', function (html) {
+rs.markdown(renderer, 'Wow, this becomes http://autolink.ed !', function (html) {
   sys.puts(html);
 }, flags);
 ```
 
-### Synchronous...
+### Being synchronous...
 
 If you would like to parse your markdown synchronously you can use the `markdownSync` function:
 
