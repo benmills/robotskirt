@@ -2,7 +2,7 @@
 , "description": "A node wrapper for the awesome C markdown parsing library, sundown."
 , "tags": ["sundown", "upskirt", "robot", "markdown", "mkd"]
 , "author" : "Ben Mills <ben@bmdev.org>"
-, "version": "0.2.5"
+, "version": "1.2.2"
 , "lib": "./build/Release"
 , "main": "./build/Release/robotskirt"
 , "scripts": { "publish": "node-waf configure build" }
