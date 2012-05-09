@@ -68,9 +68,6 @@ fs.readFile('README.mkd', function (err, data) {
 });
 ```
 
-**Note:** keep in mind that the result is passed as a `Buffer` rather than a `String`,
-so you may convert it to text using `toString()`. See the last example.
-
 ### Markdown extension flags
 
 You can pass some flags to Sundown by passing them as an (optional) last argument:
@@ -87,8 +84,11 @@ rs.markdown(renderer, 'Wow, this becomes http://autolink.ed !', function (html) 
 If you would like to parse your markdown synchronously you can use the `markdownSync` function:
 
 ```javascript
-var html = rs.markdownSync(new rs.HtmlRenderer(), "*sync!*");
+var html = rs.markdownSync(new rs.HtmlRenderer(), "*sync!*").toString();
 ```
+
+**Note:** keep in mind that the result is passed as a `Buffer` rather than a `String`,
+so you may convert it to text using `toString()`, as in this example.
 
 ## Contributors
 
