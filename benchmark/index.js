@@ -132,7 +132,22 @@ main.bench = function(name, func) {
 };
 
 var bench = function() {
-  main.bench('robotskirt', require('../build/Release/robotskirt').toHtmlSync);
+  var robotskirt = (function() {
+    var rs = require('../build/Release/robotskirt');
+    var rend = new rs.HtmlRenderer();
+    return function(text) {
+      return rs.markdownSync(rend, text);
+    };
+  })();
+  main.bench('robotskirt (reuse renderer)', robotskirt);
+
+  var robotskirt_slow = (function() {
+    var rs = require('../build/Release/robotskirt');
+    return function(text) {
+      return rs.markdownSync(new rs.HtmlRenderer(), text);
+    };
+  })();
+  main.bench('robotskirt (new renderer)', robotskirt_slow);
 
   var marked = require('marked');
   main.bench('marked', marked);

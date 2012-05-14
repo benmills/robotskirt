@@ -31,77 +31,136 @@ extern "C" {
                                                               \
   NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(3, NG_JS_ARGS);
 
-static Handle<Value> ToHtmlAsync (const Arguments&);
-static void ToHtml (eio_req *);
-static int ToHtml_After (eio_req *);
-
 struct request {
   Persistent<Function> callback;
   string in;
-  string out;
-  int out_size;
+  buf *out; //Pass the output buffer directly
+  unsigned int flags;
+  Persistent<Object> renderer;
 };
- 
-static Handle<Value> ToHtmlAsync(const Arguments& args) {
+
+////////////////////////
+// Renderer functions //
+////////////////////////
+
+class Renderer : public ObjectWrap {
+protected:
+  mkd_renderer* const ptr;
+public:
+  inline Renderer() : ptr(new mkd_renderer) {}
+  inline mkd_renderer* getHandle() {return ptr;}
+  inline ~Renderer() {
+    delete ptr;
+  }
+  static Handle<Value> newInstance(const Arguments& args);
+};
+
+class HtmlRenderer : public Renderer {
+public:
+  inline HtmlRenderer(unsigned int flags) {
+    upshtml_renderer(ptr, flags);
+  }
+  inline ~HtmlRenderer() {
+    upshtml_free_renderer(ptr);
+  }
+  static Handle<Value> newInstance(const Arguments& args);
+};
+
+Handle<Value> Renderer::newInstance(const Arguments& args) {
   HandleScope scope;
 
-  const char *usage = "usage: toHtml(markdown_string, callback)";
-  if (args.Length() != 2) {
-    return ThrowException(Exception::Error(String::New(usage)));
-  }
-
-  String::Utf8Value in(args[0]);
-  Local<Function> callback = Local<Function>::Cast(args[1]);
-
-  request *sr = new request;
-  sr->callback = Persistent<Function>::New(callback);
-  sr->in = *in;
-
-  eio_custom(ToHtml, EIO_PRI_DEFAULT, ToHtml_After, sr);
-  ev_ref(EV_DEFAULT_UC);
-
-  return scope.Close( Undefined() );
+  (new Renderer)->Wrap(args.This());
+  return scope.Close(args.This());
 }
 
-static void ToHtml(eio_req *req) {
-  request *sr = static_cast<request *>(req->data);
+Handle<Value> HtmlRenderer::newInstance(const Arguments& args) {
+  HandleScope scope;
 
-  struct mkd_renderer renderer;
-  struct buf *input_buf, *output_buf;
+  unsigned int flags = 0;
+  if (args.Length() >= 1) flags = args[0]->Uint32Value(); //FIXME: introduce method, allow list of flags
+
+  (new HtmlRenderer(flags))->Wrap(args.This());
+  return scope.Close(args.This());
+}
+
+
+//////////////////////
+// Render functions //
+//////////////////////
+
+static void markdownProcess(eio_req *req);
+static int markdownAfter(eio_req *req);
+
+static void outputBufferFree(char* data, void* hint) {
+  buf* b = static_cast<buf*>(hint);
+  bufrelease(b);
+}
+
+static Handle<Value> markdown(const Arguments& args) {
+  HandleScope scope;
+  try {
+    //Check arguments
+    if (args.Length() < 3 || (!args[0]->IsObject()) || (!args[2]->IsFunction()))
+      throw Exception::TypeError(String::New("usage: markdown(renderer, input, callback, [extensions])"));
+
+    //Extract arguments
+    Local<Object> rend = args[0]->ToObject();
+    String::Utf8Value in(args[1]);
+    Local<Function> callback = Local<Function>::Cast(args[2]);
+    unsigned int flags = 0;
+    if (args.Length() >= 4) flags = args[3]->Uint32Value(); //FIXME
+
+    //Make request
+    request *sr = new request;
+    sr->callback = Persistent<Function>::New(callback);
+    sr->in = *in;
+    sr->flags = flags;
+    sr->renderer = Persistent<Object>::New(rend);
+
+    //Call process
+    eio_custom(markdownProcess, EIO_PRI_DEFAULT, markdownAfter, sr);
+    ev_ref(EV_DEFAULT_UC);
+
+    return scope.Close( Undefined() );
+  } catch (Handle<Value> h) {
+    return ThrowException(h);
+  } catch (exception e) {
+    return ThrowException(Exception::Error(String::New(e.what())));
+  }
+}
+
+static void markdownProcess(eio_req *req) {
+  //Extract request and renderer
+  request *sr = static_cast<request *>(req->data);
+  Renderer* rwrap = Renderer::Unwrap<Renderer>(sr->renderer);
+  mkd_renderer* rend = rwrap->getHandle();
 
   // Create input buffer from string
-  input_buf = bufnew(sr->in.size());
-  bufput(input_buf, sr->in.c_str(), sr->in.size());
+  struct buf *input_buf = bufnew(sr->in.size());
+//  try {FIXME: RAII
+    bufput(input_buf, sr->in.c_str(), sr->in.size());
 
-  // Create output buffer and reset size to 0
-	output_buf = bufnew(OUTPUT_UNIT);
-  output_buf->size = 0;
+    // Create output buffer and reset size to 0
+    sr->out = bufnew(OUTPUT_UNIT);
+    sr->out->size = 0;
 
-  // Use new Upskirt HTML to render
-  upshtml_renderer(&renderer, 0);
-  ups_markdown(output_buf, input_buf, &renderer, ~0);
-  upshtml_free_renderer(&renderer);
-
-  sr->out = output_buf->data;
-  sr->out_size = output_buf->size;
-
-	/* cleanup */
-	bufrelease(input_buf);
-  bufrelease(output_buf);
+    // Render!
+    ups_markdown(sr->out, input_buf, rend, sr->flags);
+//  } finally {
+    //Free input buffer
+    bufrelease(input_buf);
+//  }
 }
 
-static int ToHtml_After(eio_req *req) {
+static int markdownAfter(eio_req *req) {
   HandleScope scope;
 
   ev_unref(EV_DEFAULT_UC);
-  request *sr = static_cast<request *>(req->data);
+  request *sr = static_cast<request*>(req->data);
   Local<Value> argv[1];
 
-  // Set contents
-  const char* contents = sr->out.c_str();
-
   // Create and assign fast buffer to arguments array
-  Buffer* buffer = Buffer::New(const_cast<char *>(contents), sr->out_size);
+  Buffer* buffer = Buffer::New(const_cast<char *>(sr->out->data), sr->out->size, outputBufferFree, sr->out);
   Local<Object> fastBuffer;
   MAKE_FAST_BUFFER(buffer, fastBuffer);
   argv[0] = fastBuffer;
@@ -114,54 +173,93 @@ static int ToHtml_After(eio_req *req) {
   }
 
   /* cleanup */
-  sr->callback.Dispose();
-  free(sr);
+  sr->callback.Dispose(); //FIXME: should we put this into a finally (RAII)?
   return 0;
 }
 
-static Handle<Value> ToHtmlSync(const Arguments &args) {
+static Handle<Value> markdownSync(const Arguments &args) {
   HandleScope scope;
+  try {
+    //Check arguments
+    if (args.Length() < 2 || (!args[0]->IsObject()))
+      throw Exception::TypeError(String::New("usage: markdown(renderer, input, [extensions])"));
 
-  const char *usage = "usage: toHtmlSync(markdown_string)";
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(usage)));
+    //Extract arguments
+    Renderer* rwrap = Renderer::Unwrap<Renderer>(args[0]->ToObject());
+    mkd_renderer* rend = rwrap->getHandle();
+    String::Utf8Value instr (args[1]);
+    unsigned int flags = 0;
+    if (args.Length() >= 3) flags = args[2]->Uint32Value(); //FIXME
+
+    // Create input buffer from string
+    struct buf *input_buf = bufnew(instr.length());
+  //  try {FIXME: RAII
+      bufput(input_buf, *instr, instr.length());
+
+      // Create output buffer and reset size to 0
+      struct buf *out = bufnew(OUTPUT_UNIT);
+      out->size = 0;
+
+      // Render!
+      ups_markdown(out, input_buf, rend, flags);
+      
+      // Create and return fast buffer to result
+      Buffer* buffer = Buffer::New(const_cast<char *>(out->data), out->size, outputBufferFree, out);
+      Local<Object> fastBuffer;
+      MAKE_FAST_BUFFER(buffer, fastBuffer);
+  //  } finally {
+      //Free input buffer
+      bufrelease(input_buf);
+  //  }
+      return scope.Close(fastBuffer);
+  } catch (Handle<Value> h) {
+    return ThrowException(h);
+  } catch (exception e) {
+    return ThrowException(Exception::Error(String::New(e.what())));
   }
-
-  struct mkd_renderer renderer;
-  struct buf *input_buf, *output_buf;
-
-  String::Utf8Value utf8_in(args[0]);
-  string in = *utf8_in;
-  string out;
-
-  // Create input buffer from string
-  input_buf = bufnew(in.size());
-  bufput(input_buf, in.c_str(), in.size());
-
-  // Create output buffer and reset size to 0
-  output_buf = bufnew(OUTPUT_UNIT);
-  output_buf->size = 0;
-
-  // Use new Upskirt HTML to render
-  upshtml_renderer(&renderer, 0);
-  ups_markdown(output_buf, input_buf, &renderer, ~0);
-  upshtml_free_renderer(&renderer);
-
-  out = output_buf->data;
-
-  // Create and assign fast buffer to arguments array
-  Handle<String> md = String::New(output_buf->data, output_buf->size);
-
-	/* cleanup */
-  bufrelease(input_buf);
-  bufrelease(output_buf);
-  return scope.Close(md);
 }
- 
-extern "C" void init (Handle<Object> target) {
-  HandleScope scope;
 
-  target->Set(String::New("version"), String::New("0.2.2"));
-  NODE_SET_METHOD(target, "toHtml", ToHtmlAsync);
-  NODE_SET_METHOD(target, "toHtmlSync", ToHtmlSync);
+
+////////////////////////
+// Module declaration //
+////////////////////////
+
+extern "C" {
+  void init (Handle<Object> target) {
+    HandleScope scope;
+
+    //Static functions & properties
+    target->Set(String::NewSymbol("version"), String::New("0.2.2"));
+    NODE_SET_METHOD(target, "markdown", markdown);
+    NODE_SET_METHOD(target, "markdownSync", markdownSync);
+
+    //Extension constants
+    target->Set(String::NewSymbol("EXT_AUTOLINK"), Integer::New(MKDEXT_AUTOLINK));
+    target->Set(String::NewSymbol("EXT_FENCED_CODE"), Integer::New(MKDEXT_FENCED_CODE));
+    target->Set(String::NewSymbol("EXT_LAX_HTML_BLOCKS"), Integer::New(MKDEXT_LAX_HTML_BLOCKS));
+    target->Set(String::NewSymbol("EXT_NO_INTRA_EMPHASIS"), Integer::New(MKDEXT_NO_INTRA_EMPHASIS));
+    target->Set(String::NewSymbol("EXT_SPACE_HEADERS"), Integer::New(MKDEXT_SPACE_HEADERS));
+    target->Set(String::NewSymbol("EXT_STRIKETHROUGH"), Integer::New(MKDEXT_STRIKETHROUGH));
+    target->Set(String::NewSymbol("EXT_TABLES"), Integer::New(MKDEXT_TABLES));
+
+    //TODO: html renderer flags
+
+    //Renderer class
+    Local<FunctionTemplate> rendL = FunctionTemplate::New(&Renderer::newInstance);
+    Persistent<FunctionTemplate> rend = Persistent<FunctionTemplate>::New(rendL);
+    rend->InstanceTemplate()->SetInternalFieldCount(1);
+    rend->SetClassName(String::NewSymbol("Renderer"));
+
+    target->Set(String::NewSymbol("Renderer"), rend->GetFunction());
+
+    //Standard HTML renderer class
+    Local<FunctionTemplate> htmlrendL = FunctionTemplate::New(&HtmlRenderer::newInstance);
+    Persistent<FunctionTemplate> htmlrend = Persistent<FunctionTemplate>::New(htmlrendL);
+    htmlrend->InstanceTemplate()->SetInternalFieldCount(1);
+    htmlrend->Inherit(rend);
+    htmlrend->SetClassName(String::NewSymbol("HtmlRenderer"));
+
+    target->Set(String::NewSymbol("HtmlRenderer"), htmlrend->GetFunction());
+  }
+  NODE_MODULE(robotskirt, init)
 }
