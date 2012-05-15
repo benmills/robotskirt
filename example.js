@@ -1,5 +1,5 @@
-var markdown = require('./build/Release/robotskirt');
-var fs = require('fs');                       
+var markdown = require('./index.js');
+var fs = require('fs');
 
 // Simple examples
 
@@ -14,4 +14,4 @@ fs.readFile('README.mkd', function (err, data) {
   markdown.toHtml(data.toString(), function (html) {
     process.stdout.write(html);
   });
-});                                           
+});
