@@ -43,7 +43,7 @@ Then, call the `markdown` function passing as arguments your renderer,
 the markdown code to parse, and a callback to handle the result:
 
 ```javascript
-var rs = require('robotskirt');
+var rs = require('robotskirt')
   , sys = require('sys');
 
 var renderer = new rs.HtmlRenderer();
@@ -73,10 +73,21 @@ fs.readFile('README.mkd', function (err, data) {
 You can pass some flags to Sundown by passing them as an (optional) last argument:
 
 ```javascript
-var flags = rs.EXT_FENCED_CODE & rs.EXT_AUTOLINK;
+var rs = require('robotskirt')
+  , sys = require('sys');
+
+var renderer = new rs.HtmlRenderer()
+  , flags = rs.flags.EXT_FENCED_CODE + rs.flags.EXT_AUTOLINK;
+	
 rs.markdown(renderer, 'Wow, this becomes http://autolink.ed !', function (html) {
   sys.puts(html);
 }, flags);
+```
+
+Or, to enable all supported flags, use:
+
+```javascript
+var flags = ~0;
 ```
 
 ### Being synchronous...
