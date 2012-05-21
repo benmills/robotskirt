@@ -229,7 +229,7 @@ extern "C" {
     HandleScope scope;
 
     //Static functions & properties
-    target->Set(String::NewSymbol("version"), String::New("0.2.2"));
+    target->Set(String::NewSymbol("version"), String::New("1.0.0"));
     NODE_SET_METHOD(target, "markdown", markdown);
     NODE_SET_METHOD(target, "markdownSync", markdownSync);
 
