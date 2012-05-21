@@ -1,17 +1,36 @@
-var markdown = require('./index.js');
+var rs = require('./index.js');
 var fs = require('fs');
 
 // Simple examples
-
-markdown.toHtml("# async", function (html) {
+rs.toHtml("# async", function (html) {
   process.stdout.write(html);
 });
 
-process.stdout.write(markdown.toHtmlSync("# sync markdown parsing.."));
+process.stdout.write(rs.toHtmlSync("# sync markdown parsing.."));
 
 //Open a file and parse it
 fs.readFile('README.mkd', function (err, data) {
-  markdown.toHtml(data.toString(), function (html) {
+  rs.toHtml(data.toString(), function (html) {
     process.stdout.write(html);
   });
 });
+
+// Reuse a renderer
+var renderer = new rs.HtmlRenderer();
+
+rs.markdown(renderer, "*this is bold* http://www.benmills.org", function (html) {
+  console.log(html.toString());
+});
+
+// Use a flag
+
+rs.markdown(renderer, "*this is bold* http://www.benmills.org", function (html) {
+  console.log(html.toString());
+}, [rs.flags.EXT_AUTOLINK]);
+
+rs.toHtml("*this is bold* http://www.benmills.org", function (html) {
+  console.log(html.toString());
+}, [rs.flags.EXT_AUTOLINK]);
+
+output = rs.toHtmlSync("*this is bold* http://www.benmills.org", [rs.flags.EXT_AUTOLINK]);
+console.log(output.toString());

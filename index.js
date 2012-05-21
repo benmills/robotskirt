@@ -12,12 +12,12 @@ var Robotskirt = {
             EXT_STRIKETHROUGH: rs.EXT_STRIKETHROUGH,
             EXT_TABLES: rs.EXT_TABLES },
 
-  toHtml: function (markdownText, callback) {
-    this.markdown(new this.HtmlRenderer(), markdownText, callback);
+  toHtml: function (markdownText, callback, flags) {
+    this.markdown(new this.HtmlRenderer(), markdownText, callback, flags);
   },
 
-  toHtmlSync: function (markdownText) {
-    return this.markdownSync(new this.HtmlRenderer(), markdownText);
+  toHtmlSync: function (markdownText, flags) {
+    return this.markdownSync(new this.HtmlRenderer(), markdownText, flags);
   }
 }
 
