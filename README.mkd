@@ -107,6 +107,7 @@ so you may convert it to text using `toString()`, as in this example.
 * [Tim Branyen](https://github.com/tbranyen)
 * [Ryan Graham](https://github.com/rmg)
 * [Xavier Mendez](https://github.com/jmendeth)
+* [Luke Hagan](https://github.com/lhagan)
 
 ## License
 
