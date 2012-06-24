@@ -44,11 +44,11 @@ the markdown code to parse, and a callback to handle the result:
 
 ```javascript
 var rs = require('robotskirt')
-  , sys = require('sys');
+  , util = require('util');
 
 var renderer = new rs.HtmlRenderer();
 rs.markdown(renderer, '# Hello World', function (html) {
-  sys.puts(html);
+  util.puts(html);
 });
 // '<h1>Hello World</h1>\n'
 ```
@@ -58,12 +58,12 @@ For example, to read and parse a Markdown file:
 ```javascript
 var rs = require('robotskirt')
   , fs = require('fs')
-  , sys = require('sys');
+  , util = require('util');
 
 var renderer = new rs.HtmlRenderer();
 fs.readFile('README.mkd', function (err, data) {
   rs.markdown(renderer, data, function (html) {
-    sys.puts(html);
+    util.puts(html);
   });
 });
 ```
@@ -74,13 +74,13 @@ You can pass some flags to Sundown by passing them as an (optional) last argumen
 
 ```javascript
 var rs = require('robotskirt')
-  , sys = require('sys');
+  , util = require('util');
 
 var renderer = new rs.HtmlRenderer()
   , flags = rs.flags.EXT_FENCED_CODE + rs.flags.EXT_AUTOLINK;
 	
 rs.markdown(renderer, 'Wow, this becomes http://autolink.ed !', function (html) {
-  sys.puts(html);
+  util.puts(html);
 }, flags);
 ```
 
