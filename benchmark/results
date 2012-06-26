@@ -1,0 +1,27 @@
+Run 1:
+
+robotskirt (reuse renderer) completed in 1794ms.
+robotskirt (new renderer) completed in 1848ms.
+marked completed in 5517ms.
+discount completed in 5866ms.
+showdown (reuse converter) completed in 13789ms.
+showdown (new converter) completed in 17161ms.
+
+Run 2:
+
+robotskirt (reuse renderer) completed in 1816ms.
+robotskirt (new renderer) completed in 1935ms.
+marked completed in 5640ms.
+discount completed in 6242ms.
+showdown (reuse converter) completed in 15817ms.
+showdown (new converter) completed in 19994ms.
+
+Run 3:
+
+robotskirt (reuse renderer) completed in 1802ms.
+robotskirt (new renderer) completed in 1897ms.
+marked completed in 6222ms.
+discount completed in 6944ms.
+showdown (reuse converter) completed in 17364ms.
+showdown (new converter) completed in 20176ms.
+
