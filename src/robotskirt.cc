@@ -1,18 +1,17 @@
 #include <v8.h>
 #include <node.h>
 #include <node_buffer.h>
+
 #include <string>
-#include <stdlib.h>
-#include <unistd.h>
+
+#include "markdownWrapper.hpp"
 
 using namespace std;
+
 using namespace node;
 using namespace v8;
 
-extern "C" {
-  #include"markdown.h"
-  #include"html.h"
-}
+using namespace mkd;
 
 #define OUTPUT_UNIT 64
 
