@@ -15,9 +15,11 @@ def build(bld):
   sundown = bld.new_task_gen("cc", "shlib")
   sundown.source = """
     src/markdown.c
-    src/array.c
+    src/stack.c
     src/buffer.c
-    src/html.c """
+    src/html.c
+    src/autolink.c
+  """
   sundown.includes = "src/"
   sundown.name = "sundown"
   sundown.target = "sundown"
