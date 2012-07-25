@@ -702,7 +702,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,0,1 ));
+    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,0 ));
 
     //RENDERER class
     Persistent<FunctionTemplate> rend = initRenderer(target);
@@ -735,7 +735,17 @@ extern "C" {
     target->Set(String::NewSymbol("EXT_SUPERSCRIPT"), Integer::New(MKDEXT_SUPERSCRIPT));
     target->Set(String::NewSymbol("EXT_TABLES"), Integer::New(MKDEXT_TABLES));
 
-    //TODO: html renderer flags
+    //Html renderer flags
+    target->Set(String::NewSymbol("HTML_SKIP_HTML"), Integer::New(HTML_SKIP_HTML));
+    target->Set(String::NewSymbol("HTML_SKIP_STYLE"), Integer::New(HTML_SKIP_STYLE));
+    target->Set(String::NewSymbol("HTML_SKIP_IMAGES"), Integer::New(HTML_SKIP_IMAGES));
+    target->Set(String::NewSymbol("HTML_SKIP_LINKS"), Integer::New(HTML_SKIP_LINKS));
+    target->Set(String::NewSymbol("HTML_EXPAND_TABS"), Integer::New(HTML_EXPAND_TABS));
+    target->Set(String::NewSymbol("HTML_SAFELINK"), Integer::New(HTML_SAFELINK));
+    target->Set(String::NewSymbol("HTML_TOC"), Integer::New(HTML_TOC));
+    target->Set(String::NewSymbol("HTML_HARD_WRAP"), Integer::New(HTML_HARD_WRAP));
+    target->Set(String::NewSymbol("HTML_USE_XHTML"), Integer::New(HTML_USE_XHTML));
+    target->Set(String::NewSymbol("HTML_ESCAPE"), Integer::New(HTML_ESCAPE));
   }
   NODE_MODULE(robotskirt, init)
 }
