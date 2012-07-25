@@ -16,6 +16,7 @@ using namespace mkd;
 
 // Constants taken from the official executable
 #define OUTPUT_UNIT 64
+#define DEFAULT_MAX_NESTING 16
 
 namespace robotskirt {
 
@@ -94,7 +95,7 @@ void CheckArguments(int min, const Arguments& args) {
 }
 
 int64_t CheckInt(Handle<Value> value) {
-    HandleScope scope;
+    HandleScope scope;//FIXME: don't allow floating-point values
     if (!value->IsNumber()) type_error("You must provide an integer!");
     return value->IntegerValue();
 }
@@ -102,7 +103,7 @@ int64_t CheckInt(Handle<Value> value) {
 unsigned int CheckFlags(Handle<Value> hdl) {
     HandleScope scope;
     if (hdl->IsArray()) {
-        unsigned int ret;
+        unsigned int ret = 0;
         Handle<Array> array = Handle<Array>::Cast(hdl);
         for (uint32_t i=0; i<array->Length(); i++)
             ret |= CheckInt(array->Get(1));
@@ -349,7 +350,7 @@ public: //FIXME: fix "constructors called as functions" bug
     ~HtmlRendererWrap() {}
     static V8_CALLBACK(NewInstance, 0) {
         //Extract arguments
-        unsigned int flags;
+        unsigned int flags = 0;
         if (args.Length() >= 1) {
             flags = CheckFlags(args[0]);
         }
@@ -392,8 +393,8 @@ public:
             type_error("You must provide a Renderer!");
         RendererWrap* rend = Unwrap<RendererWrap>(obj);
         
-        unsigned int flags; //FIXME: investigate what happens if not given
-        size_t max_nesting = 16; //FIXME: taken from the official example
+        unsigned int flags = 0;
+        size_t max_nesting = DEFAULT_MAX_NESTING;
         if (args.Length()>=2) {
             flags = CheckFlags(args[1]);
             if (args.Length()>=3) {
@@ -701,7 +702,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,0,0 ));
+    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,0,1 ));
 
     //RENDERER class
     Persistent<FunctionTemplate> rend = initRenderer(target);
