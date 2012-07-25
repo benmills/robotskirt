@@ -19,6 +19,9 @@ def build(bld):
     src/buffer.c
     src/html.c
     src/autolink.c
+    src/houdini_href_e.c
+    src/houdini_html_e.c
+    src/html_smartypants.c
   """
   sundown.includes = "src/"
   sundown.name = "sundown"
