@@ -357,6 +357,10 @@ public: //FIXME: fix "constructors called as functions" bug
         (new HtmlRendererWrap(flags))->Wrap(args.This());
         return scope.Close(args.This());
     } V8_WRAP_END()
+    static V8_GETTER(GetFlags) {
+        HtmlRendererWrap* inst = Unwrap<HtmlRendererWrap>(info.Holder());
+        return scope.Close(Integer::New(inst->flags_));
+    } V8_WRAP_END()
 protected:
     unsigned int const flags_;
     html_renderopt options;//TODO add a virtual method getOpaque()
@@ -650,8 +654,9 @@ Persistent<FunctionTemplate> initHtmlRenderer(Handle<Object> target, Handle<Func
     prot->Inherit(rend);
     prot->InstanceTemplate()->SetInternalFieldCount(1);
     prot->SetClassName(String::NewSymbol("HtmlRenderer"));
-    
-        
+
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("flags"), HtmlRendererWrap::GetFlags);
+
     target->Set(String::NewSymbol("HtmlRenderer"), prot->GetFunction());
     return prot;
 }
@@ -734,4 +739,4 @@ extern "C" {
   NODE_MODULE(robotskirt, init)
 }
 }
-        
+
