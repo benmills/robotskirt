@@ -701,7 +701,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 1,0,0 ));
+    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,0,0 ));
 
     //RENDERER class
     Persistent<FunctionTemplate> rend = initRenderer(target);
