@@ -434,18 +434,16 @@ public:
         length = Buffer::Length(obj);
         
         //Prepare
-        buf* out = bufnew(OUTPUT_UNIT); //XXX TODO: ensure deallocation
+        BufWrap out (bufnew(OUTPUT_UNIT));
         
         //GO!!
-        sd_markdown_render(out, (uint8_t*)data, length, md->markdown);
+        sd_markdown_render(*out, (uint8_t*)data, length, md->markdown);
         
-        //Finish and...
+        //Finish
         Buffer* buffer = Buffer::New((char*)out->data, out->size);
         Local<Object> fastBuffer;
         MAKE_FAST_BUFFER(buffer, fastBuffer);
         out->data = NULL;
-        //...cleanup
-        bufrelease(out);
         
         return scope.Close(fastBuffer);
     } V8_WRAP_END()
@@ -702,7 +700,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,1 ));
+    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,3 ));
 
     //RENDERER class
     Persistent<FunctionTemplate> rend = initRenderer(target);
