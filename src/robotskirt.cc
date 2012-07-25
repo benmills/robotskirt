@@ -360,7 +360,7 @@ public: //FIXME: fix "constructors called as functions" bug
     } V8_WRAP_END()
     static V8_GETTER(GetFlags) {
         HtmlRendererWrap* inst = Unwrap<HtmlRendererWrap>(info.Holder());
-        return scope.Close(Integer::New(inst->flags_));
+        return scope.Close(Integer::NewFromUnsigned(inst->flags_));
     } V8_WRAP_END()
 protected:
     unsigned int const flags_;
