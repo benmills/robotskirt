@@ -106,7 +106,7 @@ unsigned int CheckFlags(Handle<Value> hdl) {
         unsigned int ret = 0;
         Handle<Array> array = Handle<Array>::Cast(hdl);
         for (uint32_t i=0; i<array->Length(); i++)
-            ret |= CheckInt(array->Get(1));
+            ret |= CheckInt(array->Get(i));
         return ret;
     }
     return CheckInt(hdl);
@@ -702,7 +702,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,0 ));
+    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,1 ));
 
     //RENDERER class
     Persistent<FunctionTemplate> rend = initRenderer(target);
