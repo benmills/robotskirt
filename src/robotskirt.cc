@@ -31,19 +31,18 @@ namespace robotskirt {
     Context::GetCurrent()->Global()->Get(                     \
       String::New("Buffer")));                                \
                                                               \
-  Handle<Value> NG_JS_ARGS[1] = {                             \
-    Local<Value>::New(NG_SLOW_BUFFER->handle_),                                  \
-    /*Integer::New(Buffer::Length(NG_SLOW_BUFFER)),             \
-    Integer::New(0)    */                                       \
+  Handle<Value> NG_JS_ARGS[2] = {                             \
+    NG_SLOW_BUFFER->handle_,                                  \
+    Integer::New(Buffer::Length(NG_SLOW_BUFFER))/*,           \
+    Integer::New(0) <- WITH THIS WILL THROW AN ERROR*/        \
   };                                                          \
                                                               \
-  NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(1, NG_JS_ARGS);
+  NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(2, NG_JS_ARGS);
 
 // V8 exception wrapping
 
-Persistent<Value> type_error(const char* message) {
+#define type_error(message) \
     throw Persistent<Value>::New(Exception::TypeError(String::New(message)));
-}
 
 #define V8_WRAP_START()                                                        \
   HandleScope scope;                                                           \
@@ -150,27 +149,24 @@ template <class T> void SetPersistent(Persistent<T>& handle, Handle<T> value) {
 
 // SIGNATURES
 enum CppSignature {
-    BUF1,
-    BUF2,
-    BUF2INT,
-    BUF3,
-    INT_BUF2,
-    INT_BUF2INT,
-    INT_BUF4,
-    INT_BUF1
+    void_BUF1,
+    void_BUF2,
+    void_BUF2INT,
+    void_BUF3,
+     int_BUF2,
+     int_BUF2INT,
+     int_BUF4,
+     int_BUF1
 };
 
 // CONVERTERS (especially buf* to Local<Object>
 
 Local<Object> toBuffer(const buf* buf) {
     HandleScope scope;
-    //FIXME: this doesn't seem to work on new versions of Node
-//    Local<Object> ret;
-//    Buffer* buffer = Buffer::New((char*)buf->data, buf->size); //should we use asize instead?
-//    MAKE_FAST_BUFFER(buffer, ret);
-//    return scope.Close(ret);
-    Buffer* buffer = Buffer::New((char*)buf->data, buf->size);
-    return scope.Close(Local<Object>::New(buffer->handle_));
+    Local<Object> ret;
+    Buffer* buffer = Buffer::New((char*)buf->data, buf->size); //should we use asize instead?
+    MAKE_FAST_BUFFER(buffer, ret);
+    return scope.Close(ret);
 }
 void setToBuf(buf* target, Handle<Object> obj) { //FIXME: test, this can lead to memory leaks
     bufreset(target);
@@ -192,6 +188,9 @@ public:
     void* getFunction() {return function_;}
     void* getOpaque() {return opaque_;}
     CppSignature getSignature() {return signature_;}
+    static V8_CALLBACK(ToString, 0) {
+        return scope.Close(String::New("<Native function>"));
+    } V8_WRAP_END()
 protected://TODO: add a shared_ptr to avoid opaque data deallocation
     void* const function_;
     CppSignature const signature_;
@@ -217,6 +216,9 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
     HandleScope scope;
     Local<ObjectTemplate> wrap = ObjectTemplate::New();
     wrap->SetInternalFieldCount(1);
+    Local<FunctionTemplate> repr = FunctionTemplate::New(FunctionData::ToString);
+    wrap->Set(String::NewSymbol("toString"), repr);
+    wrap->Set(String::NewSymbol("inspect"), repr);
     wrap->SetCallAsFunctionHandler(wrapper);
     SetPersistent<Object>(handle, wrap->NewInstance());
     (new FunctionData(func,sig,opaque))->Wrap(handle);
@@ -228,15 +230,75 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 
 #define NULL_ACTION_R() NULL_ACTION()
 
-// WRAPPERS (call a CPP function from JS)
+// WRAPPERS (call a [wrapped] CPP function from JS)
 
-//TODO
+#define WRAPPER_CALL_void()
+#define WRAPPER_CALL_int() int v =
+
+#define WRAPPER_POST_CALL_void()
+#define WRAPPER_POST_CALL_int()                                                \
+    if (!v) return scope.Close(False());
+
+#define BUF1_WRAPPER(CPPFUNC, RET)                                             \
+    static V8_CALLBACK(CPPFUNC##_wrapper, 0) {                                 \
+        FunctionData *data = Unwrap<FunctionData>(args.Holder());              \
+                                                                               \
+        BufWrap ob (bufnew(OUTPUT_UNIT));                                      \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, void*))data->getFunction())        \
+                (*ob,  data->getOpaque());                                     \
+        WRAPPER_POST_CALL_##RET()                                              \
+        Local<Object> ret = toBuffer(*ob);                                     \
+        ob->data = NULL;                                                       \
+        return scope.Close(ret);                                               \
+    } V8_WRAP_END()
 
 // BINDERS (call a JS function from CPP)
 
-#define BINDER_BUF1(CPPFUNC)                                                   \
-    void CPPFUNC##_binder(struct buf *ob, void *opaque) {                      \
+#define BINDER_RETURN_void
+#define BINDER_RETURN_int  1
+
+#define BINDER_PRE_ERROR_void()
+#define BINDER_PRE_ERROR_int()                                                 \
+    if (!ret->BooleanValue()) return 0;
+
+#define BUF1_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, void *opaque) {                \
+        HandleScope scope;                                                     \
                                                                                \
+        Persistent<Object>& obj = ((RendererWrap*)opaque)->CPPFUNC;            \
+        if (obj.IsEmpty()) {                                                   \
+            NULL_ACTION()                                                      \
+        }                                                                      \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Local<Value> args [0];                                                 \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = obj->CallAsFunction(Context::GetCurrent()->Global(), 0, args);\
+        if (trycatch.HasCaught())                                              \
+            throw Persistent<Value>::New(trycatch.Exception());                \
+        /*Convert the result back*/                                            \
+        if (Buffer::HasInstance(ret)) {                                        \
+            putToBuf(ob, Handle<Object>::Cast(ret));                           \
+            return BINDER_RETURN_##RET;                                        \
+        }                                                                      \
+        if (ret->IsString()) {                                                 \
+            putToBuf(ob, Buffer::New(Local<String>::Cast(ret)));               \
+            return BINDER_RETURN_##RET;                                        \
+        }                                                                      \
+        BINDER_PRE_ERROR_##RET()                                               \
+        type_error("You should return a Buffer or a String");                  \
+    }
+
+// FORWARDERS (forward a Sundown call to its original C++ renderer)
+
+#define BUF1_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, void *opaque) {             \
+        RendererWrap* rend = (RendererWrap*)opaque;                            \
+        return ((RET(*)(struct buf *ob, void *opaque))rend->CPPFUNC##_orig)(   \
+                ob,                                                            \
+                rend->CPPFUNC##_opaque);                                       \
     }
 
 //TODO
@@ -247,7 +309,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 
 // JS ACCESSORS
 
-#define RENDFUNC_GETTER(CPPFUNC)                                               \
+#define _RENDFUNC_GETTER(CPPFUNC)                                              \
     static V8_GETTER(CPPFUNC##_getter) {                                       \
         RendererWrap* inst = Unwrap<RendererWrap>(info.Holder());              \
         Persistent<Object> func = inst->CPPFUNC;                               \
@@ -255,16 +317,45 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         return scope.Close(func);                                              \
     } V8_WRAP_END()
 
-#define RENDFUNC_VAR(CPPFUNC)                                                  \
+#define _RENDFUNC_SETTER(CPPFUNC, SIGNATURE)                                   \
+    static V8_SETTER(CPPFUNC##_setter) {                                       \
+        RendererWrap* inst = Unwrap<RendererWrap>(info.Holder());              \
+        inst->rend.CPPFUNC = &CPPFUNC##_binder;                                \
+        if (!value->BooleanValue()) {                                          \
+            ClearPersistent<Object>(inst->CPPFUNC);                            \
+            return;                                                            \
+        }                                                                      \
+        if (!value->IsObject()) type_error("Value must be a function!");       \
+        Local<Object> obj = value->ToObject();                                 \
+        if (!obj->IsCallable()) type_error("Value must be a function!");       \
+                                                                               \
+        if (setCppFunction(&(inst->CPPFUNC##_orig),                            \
+                           &(inst->CPPFUNC##_opaque),                          \
+                           obj, SIGNATURE))                                    \
+            inst->rend.CPPFUNC = &CPPFUNC##_forwarder;                         \
+        SetPersistent<Object>(inst->CPPFUNC, obj);                             \
+    } V8_WRAP_END_NR()
+
+#define _RENDFUNC_VAR(CPPFUNC)                                                 \
     Persistent<Object> CPPFUNC;                                                \
     void* CPPFUNC##_orig;                                                      \
     void* CPPFUNC##_opaque;
 
-// The three macros together
-#define RENDFUNC_DEF(CPPFUNC, SIGNATURE)                                       \
-    protected: RENDFUNC_VAR(CPPFUNC)                                           \
+// All the macros together
+#define RENDFUNC_DEF(CPPFUNC, SIGBASE, RET)                                    \
+    protected: _RENDFUNC_VAR(CPPFUNC)                                          \
     public:                                                                    \
-        RENDFUNC_GETTER(CPPFUNC)
+        _RENDFUNC_GETTER(CPPFUNC)                                              \
+        _RENDFUNC_SETTER(CPPFUNC, RET##_##SIGBASE)                             \
+                                                                               \
+        SIGBASE##_FORWARDER(CPPFUNC,RET) SIGBASE##_BINDER(CPPFUNC,RET)         \
+        SIGBASE##_WRAPPER(CPPFUNC,RET)
+
+#define RENDFUNC_WRAP(CPPFUNC, SIGBASE, RET)                                   \
+    CPPFUNC##_orig = (void*)rend.CPPFUNC;                                      \
+    CPPFUNC##_opaque = opaque;                                                 \
+    rend.CPPFUNC = &CPPFUNC##_forwarder;                                       \
+    jsFunction(CPPFUNC, CPPFUNC##_orig, RET##_##SIGBASE, &CPPFUNC##_wrapper, opaque);
 
 // Forward declaration, to make things work
 class Markdown;
@@ -279,73 +370,22 @@ public:
         (new RendererWrap())->Wrap(args.This());
         return scope.Close(args.This());
     } V8_WRAP_END()
-    static V8_SETTER(hrule_setter) {
-        RendererWrap* inst = Unwrap<RendererWrap>(info.Holder());
-        inst->rend.hrule = &hrule_binder;
-        if (!value->BooleanValue()) {
-            ClearPersistent<Object>(inst->hrule);
-            return;
-        }
-        if (!value->IsObject()) type_error("Value must be a function!");
-        Local<Object> obj = value->ToObject();
-        if (!obj->IsCallable()) type_error("Value must be a function!");
-        
-        if (setCppFunction(&(inst->hrule_orig), &(inst->hrule_opaque), obj, BUF1))
-            inst->rend.hrule = &hrule_forwarder;
-        SetPersistent<Object>(inst->hrule, obj);
-    } V8_WRAP_END_NR()
-    static void hrule_binder(struct buf *ob, void *opaque) {
-        HandleScope scope;
-        
-        Persistent<Object>& obj = ((RendererWrap*)opaque)->hrule;
-        if (obj.IsEmpty()) {
-            NULL_ACTION()
-        }
-        
-        //Convert arguments
-        Local<Value> args [0];
-
-        //Call it!
-        TryCatch trycatch;
-        Local<Value> ret = obj->CallAsFunction(Context::GetCurrent()->Global(), 0, args);
-        if (trycatch.HasCaught())
-            throw Persistent<Value>::New(trycatch.Exception());
-        //Convert the result back
-        if (!Buffer::HasInstance(ret)) type_error("You should return a buffer!");
-        putToBuf(ob, Handle<Object>::Cast(ret));
-    }
-    static void hrule_forwarder(struct buf *ob, void *opaque) {
-        RendererWrap* rend = (RendererWrap*)opaque;
-        ((void(*)(struct buf *ob, void *opaque))rend->hrule_orig)(ob,  rend->hrule_opaque);
-    }
-    static V8_CALLBACK(hrule_wrapper, 0) {
-        FunctionData *data = Unwrap<FunctionData>(args.Holder());
-        void (*func)(struct buf *ob, void *opaque) = (void(*)(buf*,void*))(data->getFunction());
-        
-        buf* ob = bufnew(OUTPUT_UNIT);
-        func(ob, data->getOpaque());
-        Local<Object> ret = toBuffer(ob);
-        ob->data = NULL;
-        bufrelease(ob);
-        return scope.Close(ret);
-    } V8_WRAP_END()
 protected:
+    void wrap_functions(void* opaque) {
+        RENDFUNC_WRAP(hrule, BUF1, void)
+    }
     sd_callbacks rend;
 
-friend class Markdown;    
+friend class Markdown;
 // Renderer functions
-RENDFUNC_DEF(hrule, BUF1)
+RENDFUNC_DEF(hrule, BUF1, void)
 };
 
 class HtmlRendererWrap: public RendererWrap {
 public: //FIXME: fix "constructors called as functions" bug
     HtmlRendererWrap(unsigned int flags): flags_(flags), options() {//TODO: custom options & getters for flags also
         sdhtml_renderer(&rend, &options, 0);
-        
-        hrule_orig = (void*)rend.hrule;
-        hrule_opaque = &options;
-        rend.hrule = &hrule_forwarder;
-        jsFunction(hrule, hrule_orig, BUF1, &hrule_wrapper, &options); //FIXME: put in outer method
+        wrap_functions(&options);
     }
     ~HtmlRendererWrap() {}
     static V8_CALLBACK(NewInstance, 0) {
@@ -392,7 +432,7 @@ public:
         if (!((FunctionTemplate*)External::Cast(*args.Data())->Value())->HasInstance(obj))
             type_error("You must provide a Renderer!");
         RendererWrap* rend = Unwrap<RendererWrap>(obj);
-        
+
         unsigned int flags = 0;
         size_t max_nesting = DEFAULT_MAX_NESTING;
         if (args.Length()>=2) {
@@ -401,12 +441,12 @@ public:
                 max_nesting = CheckInt(args[2]);
             }
         }
-        
+
         //Construct / wrap the object
         (new Markdown(rend, flags, max_nesting))->Wrap(args.This());
         return scope.Close(args.This());
     } V8_WRAP_END()
-    
+
     static V8_GETTER(GetRenderer) {
         Markdown* inst = Unwrap<Markdown>(info.Holder());
         return scope.Close(inst->renderer_handle);
@@ -425,13 +465,13 @@ public:
         Markdown* md = Unwrap<Markdown>(args.This());
         
         //Extract input
-        //FIXME
-        if (!Buffer::HasInstance(args[0]))
-            type_error("You MUST provide a BUFFER!");
-        Local<Object> obj = Local<Object>::Cast(args[0]);
-        char* data; size_t length;
-        data = Buffer::Data(obj);
-        length = Buffer::Length(obj);
+        Local<Value> arg = args[0];
+        Handle<Object> obj;
+        if (Buffer::HasInstance(arg)) obj = Local<Object>::Cast(arg);
+        else if (arg->IsString()) obj = Buffer::New(Local<String>::Cast(arg));
+        else type_error("You must provide a Buffer or a String!");
+        char* data = Buffer::Data(obj);
+        size_t length = Buffer::Length(obj);
         
         //Prepare
         BufWrap out (bufnew(OUTPUT_UNIT));
@@ -440,9 +480,7 @@ public:
         sd_markdown_render(*out, (uint8_t*)data, length, md->markdown);
         
         //Finish
-        Buffer* buffer = Buffer::New((char*)out->data, out->size);
-        Local<Object> fastBuffer;
-        MAKE_FAST_BUFFER(buffer, fastBuffer);
+        Local<Object> fastBuffer = toBuffer(*out);
         out->data = NULL;
         
         return scope.Close(fastBuffer);
@@ -631,6 +669,10 @@ V8_CALLBACK(MarkdownVersion, 0) {
 // MODULE DECLARATION
 ////////////////////////////////////////////////////////////////////////////////
 
+#define RENDFUNC_V8_DEF(NAME, CPPFUNC)                                         \
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
+            RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
+
 Persistent<FunctionTemplate> initRenderer(Handle<Object> target) {
     HandleScope scope;
     
@@ -639,7 +681,7 @@ Persistent<FunctionTemplate> initRenderer(Handle<Object> target) {
     prot->InstanceTemplate()->SetInternalFieldCount(1);
     prot->SetClassName(String::NewSymbol("Renderer"));
     
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("hrule"), RendererWrap::hrule_getter, RendererWrap::hrule_setter);
+    RENDFUNC_V8_DEF("hrule", hrule);
     
     target->Set(String::NewSymbol("Renderer"), prot->GetFunction());
     return prot;
