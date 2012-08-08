@@ -815,7 +815,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), (new Version(2,1,3))->Wrapped());
+    target->Set(String::NewSymbol("version"), (new Version(2,1,4))->Wrapped());
 
     //RENDERER class
     initRenderer(target);
