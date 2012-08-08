@@ -4,8 +4,9 @@
 
 #include <string>
 #include <sstream>
+#include <map>
 
-#include "markdownWrapper.hpp"
+#include "markdownWrapper.hpp" //FIXME: no longer needed, inline it
 
 using namespace std;
 
@@ -21,7 +22,7 @@ using namespace mkd;
 namespace robotskirt {
 
 ////////////////////////////////////////////////////////////////////////////////
-// UTILITIES to ease wrapping and interfacing with V8
+// UTILITIES to ease wrapping and interfacing with V8: FIXME should be taken to separate HPP
 ////////////////////////////////////////////////////////////////////////////////
 
 // Credit: @samcday
@@ -127,6 +128,41 @@ void IDENTIFIER(Local<String> name, Local<Value> value,                        \
                 const AccessorInfo& info) {                                    \
   V8_WRAP_START()
 
+#define V8_CONSTRUCTOR(TYPE, MIN)                                              \
+static Handle<Value> NewInstance(const Arguments& args) {                      \
+  V8_WRAP_START()                                                              \
+  if ((args.Length()==1) && (args[0]->IsExternal())) {                         \
+    ((TYPE*)External::Unwrap(args[0]))->Wrap(args.This());                     \
+    return scope.Close(args.This());                                           \
+  }                                                                            \
+  if (!args.IsConstructCall())                                                 \
+    throw Persistent<Value>::New(Exception::ReferenceError(String::New("You must call this as a constructor.")));\
+  CheckArguments(MIN, args);                                                   \
+  TYPE* instance;
+
+#define V8_CONSTRUCTOR_END()                                                   \
+  instance->Wrap(args.This());                                                 \
+  return scope.Close(args.This());                                             \
+V8_WRAP_END()
+
+#define V8_WRAPPER(CLASSNAME)                                                  \
+  /**
+   * Returns the unique V8 Object corresponding to this C++ instance.
+   * For this to work, you should use V8_CONSTRUCTOR.
+   *
+   * CALLING Wrapped() WITHIN A CONSTRUCTOR MAY YIELD UNEXPECTED RESULTS,
+   * EVENTUALLY MAKING YOU BASH YOUR HEAD AGAINST A WALL. YOU HAVE BEEN WARNED.
+   **/                                                                         \
+  virtual Local<Object> Wrapped() {                                            \
+    HandleScope scope;                                                         \
+                                                                               \
+    if (handle_.IsEmpty()) {                                                   \
+      Handle<Value> args [1] = {External::New(this)};                          \
+      GetTemplate(CLASSNAME)->GetFunction()->NewInstance(1,args);              \
+    }                                                                          \
+    return scope.Close(handle_);                                               \
+  }
+
 // Dealing with V8 persistent handles
 
 template <class T> void ClearPersistent(Persistent<T>& handle) {
@@ -139,6 +175,41 @@ template <class T> void SetPersistent(Persistent<T>& handle, Handle<T> value) {
     ClearPersistent<T>(handle);
     if (value.IsEmpty()) return;
     handle = Persistent<T>::New(value);
+}
+
+// Storing templates for later use
+
+class map_comparison {
+public:
+    bool operator()(const pair<Handle<Context>, string> a, const pair<Handle<Context>, string> b) {
+        //Compare strings
+        int cp = a.second.compare(b.second);
+        if (!cp) return cp < 0;
+
+        //Compare contexts
+        if (*a.first == NULL) return *b.first;
+        if (*b.first == NULL) return false;
+        return *((internal::Object**)*a.first) < *((internal::Object**)*b.first);
+    }
+};
+
+map< pair<Handle<Context>, string>, Persistent<FunctionTemplate>,
+        map_comparison> v8_wrapped_prototypes;
+
+void StoreTemplate(string classname, Persistent<FunctionTemplate> templ) {
+    HandleScope scope;
+    //FIXME, LOW PRIORITY: make a weak ref, ensure removal when context deallocates
+    pair<Handle<Context>, string> key (Persistent<Context>::New(Context::GetCurrent()), classname);
+    v8_wrapped_prototypes.insert(
+            make_pair< pair<Handle<Context>, string>,
+                       Persistent<FunctionTemplate> > (key, templ)
+    );
+}
+
+Persistent<FunctionTemplate> GetTemplate(string classname) {
+    HandleScope scope;
+    pair<Handle<Context>, string> key (Context::GetCurrent(), classname);
+    return v8_wrapped_prototypes.at(key);
 }
 
 
@@ -159,12 +230,12 @@ enum CppSignature {
      int_BUF1
 };
 
-// CONVERTERS (especially buf* to Local<Object>
+// CONVERTERS (especially buf* to Local<Object>)
 
 Local<Object> toBuffer(const buf* buf) {
     HandleScope scope;
     Local<Object> ret;
-    Buffer* buffer = Buffer::New((char*)buf->data, buf->size); //should we use asize instead?
+    Buffer* buffer = Buffer::New((char*)buf->data, buf->size);
     MAKE_FAST_BUFFER(buffer, ret);
     return scope.Close(ret);
 }
@@ -362,14 +433,14 @@ class Markdown;
 
 class RendererWrap: public ObjectWrap {
 public:
+    V8_WRAPPER("RendererWrap")
     RendererWrap() {}
     ~RendererWrap() {
         ClearPersistent<Object>(hrule);
     }
-    static V8_CALLBACK(NewInstance, 0) {
-        (new RendererWrap())->Wrap(args.This());
-        return scope.Close(args.This());
-    } V8_WRAP_END()
+    V8_CONSTRUCTOR(RendererWrap, 0) {
+        instance = new RendererWrap();
+    } V8_CONSTRUCTOR_END()
 protected:
     void wrap_functions(void* opaque) {
         RENDFUNC_WRAP(hrule, BUF1, void)
@@ -382,22 +453,23 @@ RENDFUNC_DEF(hrule, BUF1, void)
 };
 
 class HtmlRendererWrap: public RendererWrap {
-public: //FIXME: fix "constructors called as functions" bug
-    HtmlRendererWrap(unsigned int flags): flags_(flags), options() {//TODO: custom options & getters for flags also
+public:
+    V8_WRAPPER("HtmlRendererWrap")
+    HtmlRendererWrap(unsigned int flags): flags_(flags), options() {//TODO: custom options
         sdhtml_renderer(&rend, &options, 0);
         wrap_functions(&options);
     }
     ~HtmlRendererWrap() {}
-    static V8_CALLBACK(NewInstance, 0) {
+    V8_CONSTRUCTOR(HtmlRendererWrap, 0) {
         //Extract arguments
         unsigned int flags = 0;
         if (args.Length() >= 1) {
             flags = CheckFlags(args[0]);
         }
-        
-        (new HtmlRendererWrap(flags))->Wrap(args.This());
-        return scope.Close(args.This());
-    } V8_WRAP_END()
+
+        instance = new HtmlRendererWrap(flags);
+    } V8_CONSTRUCTOR_END()
+
     static V8_GETTER(GetFlags) {
         HtmlRendererWrap* inst = Unwrap<HtmlRendererWrap>(info.Holder());
         return scope.Close(Integer::NewFromUnsigned(inst->flags_));
@@ -415,6 +487,7 @@ protected:
 
 class Markdown: public ObjectWrap {
 public:
+    V8_WRAPPER("Markdown")
     Markdown(RendererWrap* renderer, unsigned int extensions, size_t max_nesting):
             markdown(sd_markdown_new(extensions, max_nesting, &renderer->rend, renderer)),
             renderer_(renderer), max_nesting_(max_nesting), extensions_(extensions) {
@@ -424,12 +497,12 @@ public:
         ClearPersistent<Object>(renderer_handle);
         sd_markdown_free(markdown);
     }
-    static V8_CALLBACK(NewInstance, 1) {
-        //Extract arguments
+    V8_CONSTRUCTOR(Markdown, 1) {
+        //Check & extract arguments
         if (!args[0]->IsObject()) type_error("You must provide a Renderer!");
         Local<Object> obj = args[0]->ToObject();
-        //FIXME: maybe there's a better way to do that?
-        if (!((FunctionTemplate*)External::Cast(*args.Data())->Value())->HasInstance(obj))
+
+        if (!GetTemplate("RendererWrap")->HasInstance(obj))
             type_error("You must provide a Renderer!");
         RendererWrap* rend = Unwrap<RendererWrap>(obj);
 
@@ -442,10 +515,8 @@ public:
             }
         }
 
-        //Construct / wrap the object
-        (new Markdown(rend, flags, max_nesting))->Wrap(args.This());
-        return scope.Close(args.This());
-    } V8_WRAP_END()
+        instance = new Markdown(rend, flags, max_nesting);
+    } V8_CONSTRUCTOR_END()
 
     static V8_GETTER(GetRenderer) {
         Markdown* inst = Unwrap<Markdown>(info.Holder());
@@ -585,9 +656,21 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 class Version: public ObjectWrap {
-private:
-    int major_, minor_, revision_;
 public:
+    V8_WRAPPER("Version")
+    Version(int major, int minor, int revision): major_(major), minor_(minor),
+                                                 revision_(revision) {}
+    Version(Version& other): major_(other.major_), minor_(other.minor_),
+                             revision_(other.revision_) {}
+    ~Version() {}
+    V8_CONSTRUCTOR(Version, 3) {
+        int arg0 = CheckInt(args[0]);
+        int arg1 = CheckInt(args[1]);
+        int arg2 = CheckInt(args[2]);
+        
+        instance = new Version(arg0, arg1, arg2);
+    } V8_CONSTRUCTOR_END()
+    
     int getMajor() const {return major_;}
     int getMinor() const {return minor_;}
     int getRevision() const {return revision_;}
@@ -601,22 +684,7 @@ public:
         ret << major_ << "." << minor_ << "." << revision_;
         return ret.str();
     }
-    
-    Version(int major, int minor, int revision): major_(major), minor_(minor),
-                                                 revision_(revision) {}
-    Version(Version& other): major_(other.major_), minor_(other.minor_),
-                             revision_(other.revision_) {}
-    ~Version() {}
-    
-    static V8_CALLBACK(NewVersion, 3) {
-        int arg0 = CheckInt(args[0]);
-        int arg1 = CheckInt(args[1]);
-        int arg2 = CheckInt(args[2]);
-        
-        (new Version(arg0, arg1, arg2))->Wrap(args.This());
-        return scope.Close(args.This());
-    } V8_WRAP_END()
-    
+
     static V8_CALLBACK(ToString, 0) {
         Version& h = *(Unwrap<Version>(args.Holder()));
         return scope.Close(String::New(h.toString().c_str()));
@@ -649,18 +717,15 @@ public:
         Version& h = *(Unwrap<Version>(info.Holder()));
         h.revision_ = CheckInt(value);
     } V8_WRAP_END_NR()
+private:
+    int major_, minor_, revision_;
 };
-
-Handle<Value> newVersionInstance(Local<Value> data, int major, int minor, int revision) {
-    Local<Function> func = Local<Function>::Cast(data);
-    Handle<Value> argv [3] = {Integer::New(major), Integer::New(minor), Integer::New(revision)};
-    return func->NewInstance(3, argv);
-}
 
 V8_CALLBACK(MarkdownVersion, 0) {
     int major, minor, revision;
     sd_version(&major, &minor, &revision);
-    return scope.Close(newVersionInstance(args.Data(), major, minor, revision));
+    Version* ret = new Version(major, minor, revision);
+    return scope.Close(ret->Wrapped());
 } V8_WRAP_END()
 
 
@@ -673,7 +738,25 @@ V8_CALLBACK(MarkdownVersion, 0) {
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
             RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
 
-Persistent<FunctionTemplate> initRenderer(Handle<Object> target) {
+void initVersion(Handle<Object> target) {
+    HandleScope scope;
+    
+    Local<FunctionTemplate> protL = FunctionTemplate::New(&Version::NewInstance);
+    Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
+    prot->InstanceTemplate()->SetInternalFieldCount(1);
+    prot->SetClassName(String::NewSymbol("Version"));
+
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("major"), Version::GetMajor, Version::SetMajor);
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("minor"), Version::GetMinor, Version::SetMinor);
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("revision"), Version::GetRevision, Version::SetRevision);
+
+    NODE_SET_PROTOTYPE_METHOD(prot, "toString", Version::ToString);
+    
+    target->Set(String::NewSymbol("Version"), prot->GetFunction());
+    StoreTemplate("Version", prot);
+}
+
+void initRenderer(Handle<Object> target) {
     HandleScope scope;
     
     Local<FunctionTemplate> protL = FunctionTemplate::New(&RendererWrap::NewInstance);
@@ -684,28 +767,28 @@ Persistent<FunctionTemplate> initRenderer(Handle<Object> target) {
     RENDFUNC_V8_DEF("hrule", hrule);
     
     target->Set(String::NewSymbol("Renderer"), prot->GetFunction());
-    return prot;
+    StoreTemplate("RendererWrap", prot);
 }
 
-Persistent<FunctionTemplate> initHtmlRenderer(Handle<Object> target, Handle<FunctionTemplate> rend) {
+void initHtmlRenderer(Handle<Object> target) {
     HandleScope scope;
-    
+
     Local<FunctionTemplate> protL = FunctionTemplate::New(&HtmlRendererWrap::NewInstance);
     Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
-    prot->Inherit(rend);
+    prot->Inherit(GetTemplate("RendererWrap"));
     prot->InstanceTemplate()->SetInternalFieldCount(1);
     prot->SetClassName(String::NewSymbol("HtmlRenderer"));
 
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol("flags"), HtmlRendererWrap::GetFlags);
 
     target->Set(String::NewSymbol("HtmlRenderer"), prot->GetFunction());
-    return prot;
+    StoreTemplate("HtmlRendererWrap", prot);
 }
 
-Persistent<FunctionTemplate> initMarkdown(Handle<Object> target, Persistent<FunctionTemplate> rend) {
+void initMarkdown(Handle<Object> target) {
     HandleScope scope;
     
-    Local<FunctionTemplate> protL = FunctionTemplate::New(&Markdown::NewInstance, External::New(*rend));
+    Local<FunctionTemplate> protL = FunctionTemplate::New(&Markdown::NewInstance);
     Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
     prot->InstanceTemplate()->SetInternalFieldCount(1);
     prot->SetClassName(String::NewSymbol("Markdown"));
@@ -717,41 +800,31 @@ Persistent<FunctionTemplate> initMarkdown(Handle<Object> target, Persistent<Func
     NODE_SET_PROTOTYPE_METHOD(prot, "renderSync", Markdown::RenderSync);
     
     target->Set(String::NewSymbol("Markdown"), prot->GetFunction());
-    return prot;
+    StoreTemplate("Markdown", prot);
 }
 
 extern "C" {
   void init(Handle<Object> target) {
     HandleScope scope;
-
-    //Markdown version class
-    Local<FunctionTemplate> verL = FunctionTemplate::New(&Version::NewVersion);
-    Persistent<FunctionTemplate> ver = Persistent<FunctionTemplate>::New(verL);
-    ver->InstanceTemplate()->SetInternalFieldCount(1);
-    ver->SetClassName(String::NewSymbol("Version"));
-
-    ver->InstanceTemplate()->SetAccessor(String::NewSymbol("major"), Version::GetMajor, Version::SetMajor);
-    ver->InstanceTemplate()->SetAccessor(String::NewSymbol("minor"), Version::GetMinor, Version::SetMinor);
-    ver->InstanceTemplate()->SetAccessor(String::NewSymbol("revision"), Version::GetRevision, Version::SetRevision);
-
-    NODE_SET_PROTOTYPE_METHOD(ver, "toString", Version::ToString);
-    target->Set(String::NewSymbol("Version"), ver->GetFunction());
+    
+    //VERSION class
+    initVersion(target);
 
     //Markdown version function
-    Local<FunctionTemplate> mv = FunctionTemplate::New(MarkdownVersion, ver->GetFunction());
+    Local<FunctionTemplate> mv = FunctionTemplate::New(MarkdownVersion);
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), newVersionInstance(ver->GetFunction(), 2,1,3 ));
+    target->Set(String::NewSymbol("version"), (new Version(2,1,3))->Wrapped());
 
     //RENDERER class
-    Persistent<FunctionTemplate> rend = initRenderer(target);
+    initRenderer(target);
     
     //HTMLRENDERER class
-    Persistent<FunctionTemplate> htmlrend = initHtmlRenderer(target, rend);
+    initHtmlRenderer(target);
     
     //MARKDOWN class
-    Persistent<FunctionTemplate> markdown = initMarkdown(target, rend);
+    initMarkdown(target);
     
     //HTML TOC data
 //    Local<FunctionTemplate> tocL = FunctionTemplate::New(TocData::New);
