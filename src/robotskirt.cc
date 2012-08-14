@@ -184,7 +184,7 @@ public:
     bool operator()(const pair<Handle<Context>, string> a, const pair<Handle<Context>, string> b) {
         //Compare strings
         int cp = a.second.compare(b.second);
-        if (!cp) return cp < 0;
+        if (cp) return cp < 0;
 
         //Compare contexts
         if (*a.first == NULL) return *b.first;
@@ -787,16 +787,16 @@ void initHtmlRenderer(Handle<Object> target) {
 
 void initMarkdown(Handle<Object> target) {
     HandleScope scope;
-    
+
     Local<FunctionTemplate> protL = FunctionTemplate::New(&Markdown::NewInstance);
     Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
     prot->InstanceTemplate()->SetInternalFieldCount(1);
     prot->SetClassName(String::NewSymbol("Markdown"));
-    
+
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol("extensions"), Markdown::GetExtensions);
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol("max_nesting"), Markdown::GetMaxNesting);
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol("renderer"), Markdown::GetRenderer);
-    
+
     NODE_SET_PROTOTYPE_METHOD(prot, "renderSync", Markdown::RenderSync);
     
     target->Set(String::NewSymbol("Markdown"), prot->GetFunction());
