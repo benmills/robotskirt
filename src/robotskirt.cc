@@ -690,6 +690,11 @@ public:
         return scope.Close(String::New(h.toString().c_str()));
     } V8_WRAP_END()
     
+    static V8_CALLBACK(Inspect, 0) {
+        Version& h = *(Unwrap<Version>(args.Holder()));
+        return scope.Close(String::New( ("<Version "+h.toString()+">").c_str() ));
+    } V8_WRAP_END()
+    
     //Getters
     static V8_GETTER(GetMajor) {
         Version& h = *(Unwrap<Version>(info.Holder()));
@@ -751,6 +756,7 @@ void initVersion(Handle<Object> target) {
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol("revision"), Version::GetRevision, Version::SetRevision);
 
     NODE_SET_PROTOTYPE_METHOD(prot, "toString", Version::ToString);
+    NODE_SET_PROTOTYPE_METHOD(prot, "inspect", Version::Inspect);
     
     target->Set(String::NewSymbol("Version"), prot->GetFunction());
     StoreTemplate("Version", prot);
@@ -815,7 +821,7 @@ extern "C" {
     target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
 
     //Robotskirt version
-    target->Set(String::NewSymbol("version"), (new Version(2,1,4))->Wrapped());
+    target->Set(String::NewSymbol("version"), (new Version(2,2,0))->Wrapped());
 
     //RENDERER class
     initRenderer(target);
