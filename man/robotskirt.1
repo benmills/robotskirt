@@ -1,0 +1,34 @@
+.TH ROBOTSKIRT 1 "AUGUST 2012" "User Commands"
+.SH NAME robotskirt \- Node.JS wrapper for Sundown, the Markdown library
+.SH SYNOPSIS
+.B robotskirt
+.B robotskirt < myfile.markdown > myfile.html
+.SH DESCRIPTION
+.B robotskirt
+is a Node module which provides bindings and abstraction
+for the amazing and fast Markdown parsing library, Sundown.
+
+.B robotskirt
+bundles with a CLI script which you can use to parse
+Markdown code, just like
+.BR markdown (1)
+or
+.BR discount (1)
+. When run, the script discards any arguments provided
+and starts reading Markdown from STDIN. When EOF is reached,
+it starts parsing the input and prints the resulting HTML
+to STDOUT.
+.SH AUTHORS
+Authors of Robotskirt, listed in no particular order:
+
+Ben Mills <ben@bmdev.org>
+Farrin Reid <blakmatrix@gmail.com>
+Jeremy Kahn <jeremyckahn@gmail.com>
+lhagan <luke@lukehagan.com>
+Ryan Graham <r.m.graham@gmail.com>
+tbranyen <tim@tabdeveloper.com>
+Xavier Mendez <jmendeth@gmail.com>
+.SH SEE ALSO
+.BR markdown (1)
+.BR discount (1)
+.BR node (1)

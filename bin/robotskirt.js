@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-var rs = require('../build/Release/robotskirt')
+var rs = require('robotskirt')
   , util = require('util')
   , stream = require('stream');
 
