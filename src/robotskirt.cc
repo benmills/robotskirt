@@ -6,14 +6,15 @@
 #include <sstream>
 #include <map>
 
-#include "markdownWrapper.hpp" //FIXME: no longer needed, inline it
+extern "C" {
+  #include"markdown.h"
+  #include"html.h"
+}
 
 using namespace std;
 
 using namespace node;
 using namespace v8;
-
-using namespace mkd;
 
 // Constants taken from the official executable
 #define OUTPUT_UNIT 64
@@ -362,6 +363,21 @@ enum CppSignature {
      int_BUF2INT,
      int_BUF4,
      int_BUF1
+};
+
+// A C++ WRAPPER FOR Buf*, to ensure deallocation
+
+class BufWrap {
+public:
+    BufWrap(buf* buf): buf_(buf) {}
+    ~BufWrap() {
+        bufrelease(buf_);
+    }
+    buf* get() {return buf_;}
+    buf* operator->() {return buf_;}
+    buf* operator*() {return buf_;}
+private:
+    buf* const buf_;
 };
 
 // CONVERTERS (especially buf* to Local<Object>)
