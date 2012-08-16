@@ -33,7 +33,7 @@ namespace robotskirt {
       String::New("Buffer")));                                \
                                                               \
   Handle<Value> NG_JS_ARGS[2] = {                             \
-    NG_SLOW_BUFFER->handle_,                                  \
+    NG_SLOW_BUFFER,                                           \
     Integer::New(Buffer::Length(NG_SLOW_BUFFER))/*,           \
     Integer::New(0) <- WITH THIS WILL THROW AN ERROR*/        \
   };                                                          \
@@ -96,7 +96,7 @@ private:
 Local<Object> toBuffer(const buf* buf) {
     HandleScope scope;
     Local<Object> ret;
-    Buffer* buffer = Buffer::New((char*)buf->data, buf->size);
+    Handle<Object> buffer = Buffer::New(String::New((char*)buf->data, buf->size));
     MAKE_FAST_BUFFER(buffer, ret);
     return scope.Close(ret);
 }
