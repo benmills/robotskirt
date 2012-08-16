@@ -42,8 +42,7 @@ namespace robotskirt {
 
 // V8 exception wrapping
 
-#define type_error(message) \
-    throw Persistent<Value>::New(Exception::TypeError(String::New(message)));
+#define V8_THROW(VALUE) throw Persistent<Value>::New(VALUE);
 
 #define V8_WRAP_START()                                                        \
   HandleScope scope;                                                           \
@@ -89,27 +88,8 @@ namespace robotskirt {
 // JS arguments
 
 void CheckArguments(int min, const Arguments& args) {
-    HandleScope scope;
-    if (args.Length() < min)
-        throw Exception::RangeError(String::New("Not enough arguments."));
-}
-
-int64_t CheckInt(Handle<Value> value) {
-    HandleScope scope;//FIXME: don't allow floating-point values
-    if (!value->IsNumber()) type_error("You must provide an integer!");
-    return value->IntegerValue();
-}
-
-unsigned int CheckFlags(Handle<Value> hdl) {
-    HandleScope scope;
-    if (hdl->IsArray()) {
-        unsigned int ret = 0;
-        Handle<Array> array = Handle<Array>::Cast(hdl);
-        for (uint32_t i=0; i<array->Length(); i++)
-            ret |= CheckInt(array->Get(i));
-        return ret;
-    }
-    return CheckInt(hdl);
+  if (args.Length() < min)
+    throw Persistent<Value>::New(Exception::RangeError(String::New("Not enough arguments.")));
 }
 
 // V8 callback templates
@@ -128,24 +108,41 @@ void IDENTIFIER(Local<String> name, Local<Value> value,                        \
                 const AccessorInfo& info) {                                    \
   V8_WRAP_START()
 
-#define V8_CONSTRUCTOR(TYPE, MIN)                                              \
+#define V8_UNWRAP(CPP_TYPE, OBJ)                                               \
+  CPP_TYPE* inst = ObjectWrap::Unwrap<CPP_TYPE>(OBJ.Holder());
+
+// Class-specific templates
+
+#define V8_CL_CTOR(CPP_TYPE, MIN)                                              \
 static Handle<Value> NewInstance(const Arguments& args) {                      \
   V8_WRAP_START()                                                              \
   if ((args.Length()==1) && (args[0]->IsExternal())) {                         \
-    ((TYPE*)External::Unwrap(args[0]))->Wrap(args.This());                     \
+    ((CPP_TYPE*)External::Unwrap(args[0]))->Wrap(args.This());                 \
     return scope.Close(args.This());                                           \
   }                                                                            \
   if (!args.IsConstructCall())                                                 \
-    throw Persistent<Value>::New(Exception::ReferenceError(String::New("You must call this as a constructor.")));\
+    throw Persistent<Value>::New(Exception::ReferenceError(String::New("You must call this as a constructor")));\
   CheckArguments(MIN, args);                                                   \
-  TYPE* instance;
+  CPP_TYPE* inst;
 
-#define V8_CONSTRUCTOR_END()                                                   \
-  instance->Wrap(args.This());                                                 \
+#define V8_CL_CTOR_END()                                                       \
+  inst->Wrap(args.This());                                                     \
   return scope.Close(args.This());                                             \
 V8_WRAP_END()
 
-#define V8_WRAPPER(CLASSNAME)                                                  \
+#define V8_CL_GETTER(CPP_TYPE, CPP_VAR)                                        \
+  static V8_GETTER(Getter__##CPP_VAR)                                          \
+    V8_UNWRAP(CPP_TYPE, info)
+
+#define V8_CL_SETTER(CPP_TYPE, CPP_VAR)                                        \
+  static V8_SETTER(Setter__##CPP_VAR)                                          \
+    V8_UNWRAP(CPP_TYPE, info)
+
+#define V8_CL_CALLBACK(CPP_TYPE, IDENTIFIER, MIN)                              \
+  static V8_CALLBACK(IDENTIFIER, MIN)                                          \
+    V8_UNWRAP(CPP_TYPE, args)
+
+#define V8_CL_WRAPPER(CLASSNAME)                                               \
   /**
    * Returns the unique V8 Object corresponding to this C++ instance.
    * For this to work, you should use V8_CONSTRUCTOR.
@@ -166,50 +163,187 @@ V8_WRAP_END()
 // Dealing with V8 persistent handles
 
 template <class T> void ClearPersistent(Persistent<T>& handle) {
-    if (handle.IsEmpty()) return;
-    handle.Dispose();
-    handle.Clear();
+  if (handle.IsEmpty()) return;
+  handle.Dispose();
+  handle.Clear();
 }
 
 template <class T> void SetPersistent(Persistent<T>& handle, Handle<T> value) {
-    ClearPersistent<T>(handle);
-    if (value.IsEmpty()) return;
-    handle = Persistent<T>::New(value);
+  ClearPersistent<T>(handle);
+  if (value.IsEmpty()) return;
+  handle = Persistent<T>::New(value);
 }
+
+Persistent<Value> Persist(Handle<Value>& handle) {
+  return Persistent<Value>::New(handle);
+}
+
+// Type shortcuts
+
+Local<Integer> Int(int32_t integer) {
+  return Integer::New(integer);
+}
+
+Local<Integer> Uint(uint32_t integer) {
+  return Integer::NewFromUnsigned(integer);
+}
+
+Local<String> Str(const char* data) {
+  return String::New(data);
+}
+
+Local<String> Str(string str) {
+  return String::New(str.data(), str.length());
+}
+
+Local<String> Symbol(const char* data) {
+  return String::NewSymbol(data);
+}
+
+Local<Object> Obj() {
+  return Object::New();
+}
+
+#define __V8_ERROR_CTOR(ERROR)                                                 \
+Local<Value> ERROR##Err(const char* msg) {                                     \
+  return Exception::ERROR##Error(String::New(msg));                            \
+}
+
+__V8_ERROR_CTOR()
+__V8_ERROR_CTOR(Range)
+__V8_ERROR_CTOR(Reference)
+__V8_ERROR_CTOR(Syntax)
+__V8_ERROR_CTOR(Type)
+
+Local<Number> Num(double number) {
+  return Number::New(number);
+}
+
+Handle<Boolean> Bool(bool boolean) {
+  return Boolean::New(boolean);
+}
+
+Local<FunctionTemplate> Func(InvocationCallback function) {
+  return FunctionTemplate::New(function);
+}
+
+// Type casting/unwraping shortcuts
+
+double Num(Local<Value> hdl) {
+  return hdl->NumberValue();
+}
+
+int64_t Int(Local<Value> hdl) {
+  return hdl->IntegerValue();
+}
+
+uint32_t Uint(Local<Value> hdl) {
+  return hdl->Uint32Value();
+}
+
+Local<Object> Obj(Local<Value> hdl) {
+  return Local<Object>::Cast(hdl);
+}
+
+bool Bool(Local<Value> hdl) {
+  return hdl->BooleanValue();
+}
+
+// Defining things
+
+#define V8_DEF_TYPE(CPP_TYPE, V8_NAME)                                         \
+  Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(       \
+      FunctionTemplate::New(CPP_TYPE::NewInstance));                           \
+  Handle<String> __cname = String::NewSymbol(V8_NAME);                         \
+  prot->SetClassName(__cname);                                                 \
+  prot->InstanceTemplate()->SetInternalFieldCount(1);
+
+#define V8_DEF_PROP(CPP_TYPE, CPP_VAR, V8_NAME)                                \
+  prot->InstanceTemplate()->SetAccessor(NODE_PSYMBOL(V8_NAME), CPP_TYPE::Getter__##CPP_VAR, CPP_TYPE::Setter__##CPP_VAR);
+
+#define V8_DEF_RPROP(CPP_TYPE, CPP_VAR, V8_NAME)                               \
+  prot->InstanceTemplate()->SetAccessor(NODE_PSYMBOL(V8_NAME), CPP_TYPE::Getter__##CPP_VAR);
+
+#define V8_DEF_METHOD(CPP_TYPE, CPP_METHOD, V8_NAME)                           \
+  NODE_SET_PROTOTYPE_METHOD(prot, V8_NAME, CPP_TYPE::CPP_METHOD);
+
+#define V8_INHERIT(CLASSNAME) prot->Inherit(GetTemplate(CLASSNAME));
+
+// Templates for definition methods on Node
+
+#define NODE_DEF(IDENTIFIER)                                                   \
+  void IDENTIFIER(Handle<Object> target)
+
+#define NODE_DEF_TYPE(CPP_TYPE, V8_NAME)                                       \
+  NODE_DEF(init##CPP_TYPE) {                                                   \
+    HandleScope scope;                                                         \
+    V8_DEF_TYPE(CPP_TYPE, V8_NAME)
+
+#define NODE_DEF_TYPE_END()                                                    \
+    target->Set(__cname, prot->GetFunction());                                 \
+  }
+
+#define NODE_DEF_MAIN()                                                        \
+  extern "C" {                                                                 \
+    NODE_DEF(init) {                                                           \
+      HandleScope scope;
+
+#define NODE_DEF_MAIN_END(MODULE) }                                            \
+    NODE_MODULE(MODULE, init); }
 
 // Storing templates for later use
 
 class map_comparison {
 public:
-    bool operator()(const pair<Handle<Context>, string> a, const pair<Handle<Context>, string> b) {
-        //Compare strings
-        int cp = a.second.compare(b.second);
-        if (cp) return cp < 0;
+  bool operator()(const pair<Handle<Context>, string> a, const pair<Handle<Context>, string> b) {
+  //Compare strings
+    int cp = a.second.compare(b.second);
+    if (cp) return cp < 0;
 
-        //Compare contexts
-        if (*a.first == NULL) return *b.first;
-        if (*b.first == NULL) return false;
-        return *((internal::Object**)*a.first) < *((internal::Object**)*b.first);
-    }
+    //Compare contexts
+    if (*a.first == NULL) return *b.first;
+    if (*b.first == NULL) return false;
+    return *((internal::Object**)*a.first) < *((internal::Object**)*b.first);
+  }
 };
 
 map< pair<Handle<Context>, string>, Persistent<FunctionTemplate>,
-        map_comparison> v8_wrapped_prototypes;
+    map_comparison> v8_wrapped_prototypes;
 
 void StoreTemplate(string classname, Persistent<FunctionTemplate> templ) {
-    HandleScope scope;
-    //FIXME, LOW PRIORITY: make a weak ref, ensure removal when context deallocates
-    pair<Handle<Context>, string> key (Persistent<Context>::New(Context::GetCurrent()), classname);
-    v8_wrapped_prototypes.insert(
-            make_pair< pair<Handle<Context>, string>,
-                       Persistent<FunctionTemplate> > (key, templ)
-    );
+  HandleScope scope;
+  //FIXME, LOW PRIORITY: make a weak ref, ensure removal when context deallocates
+  pair<Handle<Context>, string> key (Persistent<Context>::New(Context::GetCurrent()), classname);
+  v8_wrapped_prototypes.insert(
+      make_pair< pair<Handle<Context>, string>,
+                 Persistent<FunctionTemplate> > (key, templ)
+  );
 }
 
 Persistent<FunctionTemplate> GetTemplate(string classname) {
-    HandleScope scope;
-    pair<Handle<Context>, string> key (Context::GetCurrent(), classname);
-    return v8_wrapped_prototypes.at(key);
+  HandleScope scope;
+  pair<Handle<Context>, string> key (Context::GetCurrent(), classname);
+  return v8_wrapped_prototypes.at(key);
+}
+
+// Convert + Check
+
+int64_t CheckInt(Handle<Value> value) {
+  HandleScope scope;//FIXME: don't allow floating-point values
+  if (!value->IsInt32()) V8_THROW(TypeErr("You must provide an integer!"));
+  return value->IntegerValue();
+}
+
+unsigned int CheckFlags(Handle<Value> hdl) {
+  HandleScope scope;
+  if (hdl->IsArray()) {
+    unsigned int ret = 0;
+    Handle<Array> array = Handle<Array>::Cast(hdl);
+    for (uint32_t i=0; i<array->Length(); i++)
+      ret |= CheckInt(array->Get(i));
+    return ret;
+  }
+  return CheckInt(hdl);
 }
 
 
@@ -259,8 +393,8 @@ public:
     void* getFunction() {return function_;}
     void* getOpaque() {return opaque_;}
     CppSignature getSignature() {return signature_;}
-    static V8_CALLBACK(ToString, 0) {
-        return scope.Close(String::New("<Native function>"));
+    V8_CL_CALLBACK(FunctionData, ToString, 0) {
+        return scope.Close(Str("<Native function>"));
     } V8_WRAP_END()
 protected://TODO: add a shared_ptr to avoid opaque data deallocation
     void* const function_;
@@ -287,17 +421,17 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
     HandleScope scope;
     Local<ObjectTemplate> wrap = ObjectTemplate::New();
     wrap->SetInternalFieldCount(1);
-    Local<FunctionTemplate> repr = FunctionTemplate::New(FunctionData::ToString);
-    wrap->Set(String::NewSymbol("toString"), repr);
-    wrap->Set(String::NewSymbol("inspect"), repr);
+    Local<FunctionTemplate> repr = Func(FunctionData::ToString);
+    wrap->Set(Symbol("toString"), repr);
+    wrap->Set(Symbol("inspect"), repr);
     wrap->SetCallAsFunctionHandler(wrapper);
-    SetPersistent<Object>(handle, wrap->NewInstance());
+    SetPersistent(handle, wrap->NewInstance());
     (new FunctionData(func,sig,opaque))->Wrap(handle);
 }
 
 //What to do if no function set?
 #define NULL_ACTION()                                                          \
-    type_error("No function was set for this action.");
+    V8_THROW(TypeErr("No function was set for this action."));
 
 #define NULL_ACTION_R() NULL_ACTION()
 
@@ -312,11 +446,11 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 
 #define BUF1_WRAPPER(CPPFUNC, RET)                                             \
     static V8_CALLBACK(CPPFUNC##_wrapper, 0) {                                 \
-        FunctionData *data = Unwrap<FunctionData>(args.Holder());              \
+        V8_UNWRAP(FunctionData, args)                                          \
                                                                                \
         BufWrap ob (bufnew(OUTPUT_UNIT));                                      \
-        WRAPPER_CALL_##RET() ((RET(*)(buf*, void*))data->getFunction())        \
-                (*ob,  data->getOpaque());                                     \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, void*))inst->getFunction())        \
+                (*ob,  inst->getOpaque());                                     \
         WRAPPER_POST_CALL_##RET()                                              \
         Local<Object> ret = toBuffer(*ob);                                     \
         ob->data = NULL;                                                       \
@@ -351,7 +485,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
             throw Persistent<Value>::New(trycatch.Exception());                \
         /*Convert the result back*/                                            \
         if (Buffer::HasInstance(ret)) {                                        \
-            putToBuf(ob, Handle<Object>::Cast(ret));                           \
+            putToBuf(ob, Obj(ret));                                            \
             return BINDER_RETURN_##RET;                                        \
         }                                                                      \
         if (ret->IsString()) {                                                 \
@@ -359,7 +493,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
             return BINDER_RETURN_##RET;                                        \
         }                                                                      \
         BINDER_PRE_ERROR_##RET()                                               \
-        type_error("You should return a Buffer or a String");                  \
+        V8_THROW(TypeErr("You should return a Buffer or a String"));           \
     }
 
 // FORWARDERS (forward a Sundown call to its original C++ renderer)
@@ -382,29 +516,28 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 
 #define _RENDFUNC_GETTER(CPPFUNC)                                              \
     static V8_GETTER(CPPFUNC##_getter) {                                       \
-        RendererWrap* inst = Unwrap<RendererWrap>(info.Holder());              \
-        Persistent<Object> func = inst->CPPFUNC;                               \
-        if (func.IsEmpty()) return scope.Close(Undefined());                   \
-        return scope.Close(func);                                              \
+        V8_UNWRAP(RendererWrap, info)                                          \
+        if (inst->CPPFUNC.IsEmpty()) return scope.Close(Undefined());          \
+        return scope.Close(inst->CPPFUNC);                                     \
     } V8_WRAP_END()
 
 #define _RENDFUNC_SETTER(CPPFUNC, SIGNATURE)                                   \
     static V8_SETTER(CPPFUNC##_setter) {                                       \
-        RendererWrap* inst = Unwrap<RendererWrap>(info.Holder());              \
+        V8_UNWRAP(RendererWrap, info)                                          \
         inst->rend.CPPFUNC = &CPPFUNC##_binder;                                \
-        if (!value->BooleanValue()) {                                          \
+        if (!Bool(value)) {                                                    \
             ClearPersistent<Object>(inst->CPPFUNC);                            \
             return;                                                            \
         }                                                                      \
-        if (!value->IsObject()) type_error("Value must be a function!");       \
-        Local<Object> obj = value->ToObject();                                 \
-        if (!obj->IsCallable()) type_error("Value must be a function!");       \
+        if (!value->IsObject()) V8_THROW(TypeErr("Value must be a function!"));\
+        Local<Object> obj = Obj(value);                                        \
+        if (!obj->IsCallable()) V8_THROW(TypeErr("Value must be a function!"));\
                                                                                \
         if (setCppFunction(&(inst->CPPFUNC##_orig),                            \
                            &(inst->CPPFUNC##_opaque),                          \
                            obj, SIGNATURE))                                    \
             inst->rend.CPPFUNC = &CPPFUNC##_forwarder;                         \
-        SetPersistent<Object>(inst->CPPFUNC, obj);                             \
+        SetPersistent(inst->CPPFUNC, obj);                                     \
     } V8_WRAP_END_NR()
 
 #define _RENDFUNC_VAR(CPPFUNC)                                                 \
@@ -433,14 +566,14 @@ class Markdown;
 
 class RendererWrap: public ObjectWrap {
 public:
-    V8_WRAPPER("RendererWrap")
+    V8_CL_WRAPPER("robotskirt::RendererWrap")
     RendererWrap() {}
     ~RendererWrap() {
         ClearPersistent<Object>(hrule);
     }
-    V8_CONSTRUCTOR(RendererWrap, 0) {
-        instance = new RendererWrap();
-    } V8_CONSTRUCTOR_END()
+    V8_CL_CTOR(RendererWrap, 0) {
+        inst = new RendererWrap();
+    } V8_CL_CTOR_END()
 protected:
     void wrap_functions(void* opaque) {
         RENDFUNC_WRAP(hrule, BUF1, void)
@@ -454,25 +587,24 @@ RENDFUNC_DEF(hrule, BUF1, void)
 
 class HtmlRendererWrap: public RendererWrap {
 public:
-    V8_WRAPPER("HtmlRendererWrap")
+    V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
     HtmlRendererWrap(unsigned int flags): flags_(flags), options() {//TODO: custom options
         sdhtml_renderer(&rend, &options, 0);
         wrap_functions(&options);
     }
     ~HtmlRendererWrap() {}
-    V8_CONSTRUCTOR(HtmlRendererWrap, 0) {
+    V8_CL_CTOR(HtmlRendererWrap, 0) {
         //Extract arguments
         unsigned int flags = 0;
         if (args.Length() >= 1) {
             flags = CheckFlags(args[0]);
         }
 
-        instance = new HtmlRendererWrap(flags);
-    } V8_CONSTRUCTOR_END()
+        inst = new HtmlRendererWrap(flags);
+    } V8_CL_CTOR_END()
 
-    static V8_GETTER(GetFlags) {
-        HtmlRendererWrap* inst = Unwrap<HtmlRendererWrap>(info.Holder());
-        return scope.Close(Integer::NewFromUnsigned(inst->flags_));
+    V8_CL_GETTER(HtmlRendererWrap, Flags) {
+        return scope.Close(Uint(inst->flags_));
     } V8_WRAP_END()
 protected:
     unsigned int const flags_;
@@ -487,7 +619,7 @@ protected:
 
 class Markdown: public ObjectWrap {
 public:
-    V8_WRAPPER("Markdown")
+    V8_CL_WRAPPER("robotskirt::Markdown")
     Markdown(RendererWrap* renderer, unsigned int extensions, size_t max_nesting):
             markdown(sd_markdown_new(extensions, max_nesting, &renderer->rend, renderer)),
             renderer_(renderer), max_nesting_(max_nesting), extensions_(extensions) {
@@ -497,13 +629,13 @@ public:
         ClearPersistent<Object>(renderer_handle);
         sd_markdown_free(markdown);
     }
-    V8_CONSTRUCTOR(Markdown, 1) {
+    V8_CL_CTOR(Markdown, 1) {
         //Check & extract arguments
-        if (!args[0]->IsObject()) type_error("You must provide a Renderer!");
-        Local<Object> obj = args[0]->ToObject();
+        if (!args[0]->IsObject()) V8_THROW(TypeErr("You must provide a Renderer!"));
+        Local<Object> obj = Obj(args[0]);
 
-        if (!GetTemplate("RendererWrap")->HasInstance(obj))
-            type_error("You must provide a Renderer!");
+        if (!GetTemplate("robotskirt::RendererWrap")->HasInstance(obj))
+            V8_THROW(TypeErr("You must provide a Renderer!"));
         RendererWrap* rend = Unwrap<RendererWrap>(obj);
 
         unsigned int flags = 0;
@@ -515,32 +647,27 @@ public:
             }
         }
 
-        instance = new Markdown(rend, flags, max_nesting);
-    } V8_CONSTRUCTOR_END()
+        inst = new Markdown(rend, flags, max_nesting);
+    } V8_CL_CTOR_END()
 
-    static V8_GETTER(GetRenderer) {
-        Markdown* inst = Unwrap<Markdown>(info.Holder());
+    V8_CL_GETTER(Markdown, Renderer) {
         return scope.Close(inst->renderer_handle);
     } V8_WRAP_END()
-    static V8_GETTER(GetMaxNesting) {
-        Markdown* inst = Unwrap<Markdown>(info.Holder());
-        return scope.Close(Integer::NewFromUnsigned(inst->max_nesting_));
+    V8_CL_GETTER(Markdown, MaxNesting) {
+        return scope.Close(Uint(inst->max_nesting_));
     } V8_WRAP_END()
-    static V8_GETTER(GetExtensions) {
-        Markdown* inst = Unwrap<Markdown>(info.Holder());
-        return scope.Close(Integer::NewFromUnsigned(inst->extensions_));
+    V8_CL_GETTER(Markdown, Extensions) {
+        return scope.Close(Uint(inst->extensions_));
     } V8_WRAP_END()
     
     //And the most important function(s)...
-    static V8_CALLBACK(RenderSync, 1) {
-        Markdown* md = Unwrap<Markdown>(args.This());
-        
+    V8_CL_CALLBACK(Markdown, RenderSync, 1) {
         //Extract input
         Local<Value> arg = args[0];
         Handle<Object> obj;
-        if (Buffer::HasInstance(arg)) obj = Local<Object>::Cast(arg);
+        if (Buffer::HasInstance(arg)) obj = Obj(arg);
         else if (arg->IsString()) obj = Buffer::New(Local<String>::Cast(arg));
-        else type_error("You must provide a Buffer or a String!");
+        else V8_THROW(TypeErr("You must provide a Buffer or a String!"));
         char* data = Buffer::Data(obj);
         size_t length = Buffer::Length(obj);
         
@@ -548,7 +675,7 @@ public:
         BufWrap out (bufnew(OUTPUT_UNIT));
         
         //GO!!
-        sd_markdown_render(*out, (uint8_t*)data, length, md->markdown);
+        sd_markdown_render(*out, (uint8_t*)data, length, inst->markdown);
         
         //Finish
         Local<Object> fastBuffer = toBuffer(*out);
@@ -657,19 +784,19 @@ protected:
 
 class Version: public ObjectWrap {
 public:
-    V8_WRAPPER("Version")
+    V8_CL_WRAPPER("robotskirt::Version")
     Version(int major, int minor, int revision): major_(major), minor_(minor),
                                                  revision_(revision) {}
     Version(Version& other): major_(other.major_), minor_(other.minor_),
                              revision_(other.revision_) {}
     ~Version() {}
-    V8_CONSTRUCTOR(Version, 3) {
+    V8_CL_CTOR(Version, 3) {
         int arg0 = CheckInt(args[0]);
         int arg1 = CheckInt(args[1]);
         int arg2 = CheckInt(args[2]);
         
-        instance = new Version(arg0, arg1, arg2);
-    } V8_CONSTRUCTOR_END()
+        inst = new Version(arg0, arg1, arg2);
+    } V8_CL_CTOR_END()
     
     int getMajor() const {return major_;}
     int getMinor() const {return minor_;}
@@ -685,53 +812,45 @@ public:
         return ret.str();
     }
 
-    static V8_CALLBACK(ToString, 0) {
-        Version& h = *(Unwrap<Version>(args.Holder()));
-        return scope.Close(String::New(h.toString().c_str()));
+    V8_CL_CALLBACK(Version, ToString, 0) {
+        return scope.Close(Str(inst->toString()));
     } V8_WRAP_END()
     
-    static V8_CALLBACK(Inspect, 0) {
-        Version& h = *(Unwrap<Version>(args.Holder()));
-        return scope.Close(String::New( ("<Version "+h.toString()+">").c_str() ));
+    V8_CL_CALLBACK(Version, Inspect, 0) {
+        return scope.Close(Str("<Version "+inst->toString()+">"));
     } V8_WRAP_END()
     
     //Getters
-    static V8_GETTER(GetMajor) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        return scope.Close(Integer::New(h.major_));
+    V8_CL_GETTER(Version, Major) {
+        return scope.Close(Int(inst->major_));
     } V8_WRAP_END()
-    static V8_GETTER(GetMinor) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        return scope.Close(Integer::New(h.minor_));
+    V8_CL_GETTER(Version, Minor) {
+        return scope.Close(Int(inst->minor_));
     } V8_WRAP_END()
-    static V8_GETTER(GetRevision) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        return scope.Close(Integer::New(h.revision_));
+    V8_CL_GETTER(Version, Revision) {
+        return scope.Close(Int(inst->revision_));
     } V8_WRAP_END()
     
     //Setters
-    static V8_SETTER(SetMajor) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        h.major_ = CheckInt(value);
+    V8_CL_SETTER(Version, Major) {
+        inst->major_ = CheckInt(value);
     } V8_WRAP_END_NR()
-    static V8_SETTER(SetMinor) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        h.minor_ = CheckInt(value);
+   V8_CL_SETTER(Version, Minor) {
+        inst->minor_ = CheckInt(value);
     } V8_WRAP_END_NR()
-    static V8_SETTER(SetRevision) {
-        Version& h = *(Unwrap<Version>(info.Holder()));
-        h.revision_ = CheckInt(value);
+    V8_CL_SETTER(Version, Revision) {
+        inst->revision_ = CheckInt(value);
     } V8_WRAP_END_NR()
 private:
     int major_, minor_, revision_;
 };
 
-V8_CALLBACK(MarkdownVersion, 0) {
+Local<Object> SundownVersion() {
     int major, minor, revision;
     sd_version(&major, &minor, &revision);
     Version* ret = new Version(major, minor, revision);
-    return scope.Close(ret->Wrapped());
-} V8_WRAP_END()
+    return ret->Wrapped();
+}
 
 
 
@@ -743,130 +862,76 @@ V8_CALLBACK(MarkdownVersion, 0) {
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
             RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
 
-void initVersion(Handle<Object> target) {
-    HandleScope scope;
-    
-    Local<FunctionTemplate> protL = FunctionTemplate::New(&Version::NewInstance);
-    Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
-    prot->InstanceTemplate()->SetInternalFieldCount(1);
-    prot->SetClassName(String::NewSymbol("Version"));
+NODE_DEF_TYPE(Version, "Version") {
+    V8_DEF_PROP(Version, Major, "major");
+    V8_DEF_PROP(Version, Minor, "minor");
+    V8_DEF_PROP(Version, Revision, "revision");
 
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("major"), Version::GetMajor, Version::SetMajor);
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("minor"), Version::GetMinor, Version::SetMinor);
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("revision"), Version::GetRevision, Version::SetRevision);
+    V8_DEF_METHOD(Version, ToString, "toString");
+    V8_DEF_METHOD(Version, Inspect, "inspect");
 
-    NODE_SET_PROTOTYPE_METHOD(prot, "toString", Version::ToString);
-    NODE_SET_PROTOTYPE_METHOD(prot, "inspect", Version::Inspect);
-    
-    target->Set(String::NewSymbol("Version"), prot->GetFunction());
-    StoreTemplate("Version", prot);
-}
+    StoreTemplate("robotskirt::Version", prot);
+} NODE_DEF_TYPE_END()
 
-void initRenderer(Handle<Object> target) {
-    HandleScope scope;
-    
-    Local<FunctionTemplate> protL = FunctionTemplate::New(&RendererWrap::NewInstance);
-    Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
-    prot->InstanceTemplate()->SetInternalFieldCount(1);
-    prot->SetClassName(String::NewSymbol("Renderer"));
-    
+NODE_DEF_TYPE(RendererWrap, "Renderer") {
     RENDFUNC_V8_DEF("hrule", hrule);
-    
-    target->Set(String::NewSymbol("Renderer"), prot->GetFunction());
-    StoreTemplate("RendererWrap", prot);
-}
 
-void initHtmlRenderer(Handle<Object> target) {
-    HandleScope scope;
+    StoreTemplate("robotskirt::RendererWrap", prot);
+} NODE_DEF_TYPE_END()
 
-    Local<FunctionTemplate> protL = FunctionTemplate::New(&HtmlRendererWrap::NewInstance);
-    Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
-    prot->Inherit(GetTemplate("RendererWrap"));
-    prot->InstanceTemplate()->SetInternalFieldCount(1);
-    prot->SetClassName(String::NewSymbol("HtmlRenderer"));
+NODE_DEF_TYPE(HtmlRendererWrap, "HtmlRenderer") {
+    V8_INHERIT("robotskirt::RendererWrap");
 
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("flags"), HtmlRendererWrap::GetFlags);
+    V8_DEF_RPROP(HtmlRendererWrap, Flags, "flags");
 
-    target->Set(String::NewSymbol("HtmlRenderer"), prot->GetFunction());
-    StoreTemplate("HtmlRendererWrap", prot);
-}
+    StoreTemplate("robotskirt::HtmlRendererWrap", prot);
+} NODE_DEF_TYPE_END()
 
-void initMarkdown(Handle<Object> target) {
-    HandleScope scope;
+NODE_DEF_TYPE(Markdown, "Markdown") {
+    V8_DEF_RPROP(Markdown, Extensions, "extensions");
+    V8_DEF_RPROP(Markdown, MaxNesting, "maxNesting");
+    V8_DEF_RPROP(Markdown, Renderer, "renderer");
 
-    Local<FunctionTemplate> protL = FunctionTemplate::New(&Markdown::NewInstance);
-    Persistent<FunctionTemplate> prot = Persistent<FunctionTemplate>::New(protL);
-    prot->InstanceTemplate()->SetInternalFieldCount(1);
-    prot->SetClassName(String::NewSymbol("Markdown"));
+    V8_DEF_METHOD(Markdown, RenderSync, "renderSync");
 
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("extensions"), Markdown::GetExtensions);
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("max_nesting"), Markdown::GetMaxNesting);
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol("renderer"), Markdown::GetRenderer);
+    StoreTemplate("robotskirt::Markdown", prot);
+} NODE_DEF_TYPE_END()
 
-    NODE_SET_PROTOTYPE_METHOD(prot, "renderSync", Markdown::RenderSync);
-    
-    target->Set(String::NewSymbol("Markdown"), prot->GetFunction());
-    StoreTemplate("Markdown", prot);
-}
-
-extern "C" {
-  void init(Handle<Object> target) {
-    HandleScope scope;
-    
-    //VERSION class
+NODE_DEF_MAIN() {
+    //Initialize classes
     initVersion(target);
-
-    //Markdown version function
-    Local<FunctionTemplate> mv = FunctionTemplate::New(MarkdownVersion);
-    target->Set(String::NewSymbol("markdownVersion"), mv->GetFunction());
-
-    //Robotskirt version
-    target->Set(String::NewSymbol("version"), (new Version(2,2,0))->Wrapped());
-
-    //RENDERER class
-    initRenderer(target);
-    
-    //HTMLRENDERER class
-    initHtmlRenderer(target);
-    
-    //MARKDOWN class
+    initRendererWrap(target);
+    initHtmlRendererWrap(target);
     initMarkdown(target);
-    
-    //HTML TOC data
-//    Local<FunctionTemplate> tocL = FunctionTemplate::New(TocData::New);
-//    Persistent<FunctionTemplate> toc = Persistent<FunctionTemplate>::New(tocL);
-//    toc->InstanceTemplate()->SetInternalFieldCount(1);
-//    toc->SetClassName(String::NewSymbol("TocData"));
-//
-//    toc->InstanceTemplate()->SetAccessor(String::NewSymbol("headerCount"), TocData::GetHeaderCount, TocData::SetHeaderCount);
-//    toc->InstanceTemplate()->SetAccessor(String::NewSymbol("currentLevel"), TocData::GetCurrentLevel, TocData::SetCurrentLevel);
-//    toc->InstanceTemplate()->SetAccessor(String::NewSymbol("levelOffset"), TocData::GetLevelOffset, TocData::SetLevelOffset);
-//
-//    target->Set(String::NewSymbol("TocData"), toc->GetFunction());
+
+    //Versions hash
+    Local<Object> versions = Obj();
+    versions->Set(Symbol("sundown"), SundownVersion());
+    versions->Set(Symbol("robotskirt"), (new Version(2,2,0))->Wrapped());
+    target->Set(Symbol("versions"), versions);
 
     //Extension constants
-    target->Set(String::NewSymbol("EXT_AUTOLINK"), Integer::New(MKDEXT_AUTOLINK));
-    target->Set(String::NewSymbol("EXT_FENCED_CODE"), Integer::New(MKDEXT_FENCED_CODE));
-    target->Set(String::NewSymbol("EXT_LAX_SPACING"), Integer::New(MKDEXT_LAX_SPACING));
-    target->Set(String::NewSymbol("EXT_NO_INTRA_EMPHASIS"), Integer::New(MKDEXT_NO_INTRA_EMPHASIS));
-    target->Set(String::NewSymbol("EXT_SPACE_HEADERS"), Integer::New(MKDEXT_SPACE_HEADERS));
-    target->Set(String::NewSymbol("EXT_STRIKETHROUGH"), Integer::New(MKDEXT_STRIKETHROUGH));
-    target->Set(String::NewSymbol("EXT_SUPERSCRIPT"), Integer::New(MKDEXT_SUPERSCRIPT));
-    target->Set(String::NewSymbol("EXT_TABLES"), Integer::New(MKDEXT_TABLES));
+    target->Set(Symbol("EXT_AUTOLINK"), Int(MKDEXT_AUTOLINK));
+    target->Set(Symbol("EXT_FENCED_CODE"), Int(MKDEXT_FENCED_CODE));
+    target->Set(Symbol("EXT_LAX_SPACING"), Int(MKDEXT_LAX_SPACING));
+    target->Set(Symbol("EXT_NO_INTRA_EMPHASIS"), Int(MKDEXT_NO_INTRA_EMPHASIS));
+    target->Set(Symbol("EXT_SPACE_HEADERS"), Int(MKDEXT_SPACE_HEADERS));
+    target->Set(Symbol("EXT_STRIKETHROUGH"), Int(MKDEXT_STRIKETHROUGH));
+    target->Set(Symbol("EXT_SUPERSCRIPT"), Int(MKDEXT_SUPERSCRIPT));
+    target->Set(Symbol("EXT_TABLES"), Int(MKDEXT_TABLES));
 
     //Html renderer flags
-    target->Set(String::NewSymbol("HTML_SKIP_HTML"), Integer::New(HTML_SKIP_HTML));
-    target->Set(String::NewSymbol("HTML_SKIP_STYLE"), Integer::New(HTML_SKIP_STYLE));
-    target->Set(String::NewSymbol("HTML_SKIP_IMAGES"), Integer::New(HTML_SKIP_IMAGES));
-    target->Set(String::NewSymbol("HTML_SKIP_LINKS"), Integer::New(HTML_SKIP_LINKS));
-    target->Set(String::NewSymbol("HTML_EXPAND_TABS"), Integer::New(HTML_EXPAND_TABS));
-    target->Set(String::NewSymbol("HTML_SAFELINK"), Integer::New(HTML_SAFELINK));
-    target->Set(String::NewSymbol("HTML_TOC"), Integer::New(HTML_TOC));
-    target->Set(String::NewSymbol("HTML_HARD_WRAP"), Integer::New(HTML_HARD_WRAP));
-    target->Set(String::NewSymbol("HTML_USE_XHTML"), Integer::New(HTML_USE_XHTML));
-    target->Set(String::NewSymbol("HTML_ESCAPE"), Integer::New(HTML_ESCAPE));
-  }
-  NODE_MODULE(robotskirt, init)
-}
+    target->Set(Symbol("HTML_SKIP_HTML"), Int(HTML_SKIP_HTML));
+    target->Set(Symbol("HTML_SKIP_STYLE"), Int(HTML_SKIP_STYLE));
+    target->Set(Symbol("HTML_SKIP_IMAGES"), Int(HTML_SKIP_IMAGES));
+    target->Set(Symbol("HTML_SKIP_LINKS"), Int(HTML_SKIP_LINKS));
+    target->Set(Symbol("HTML_EXPAND_TABS"), Int(HTML_EXPAND_TABS));
+    target->Set(Symbol("HTML_SAFELINK"), Int(HTML_SAFELINK));
+    target->Set(Symbol("HTML_TOC"), Int(HTML_TOC));
+    target->Set(Symbol("HTML_HARD_WRAP"), Int(HTML_HARD_WRAP));
+    target->Set(Symbol("HTML_USE_XHTML"), Int(HTML_USE_XHTML));
+    target->Set(Symbol("HTML_ESCAPE"), Int(HTML_ESCAPE));
+} NODE_DEF_MAIN_END(robotskirt)
+
 }
 
