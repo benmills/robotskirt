@@ -1,8 +1,8 @@
 #include "v8u.hpp"
+#include "version.hpp"
 #include <node_buffer.h>
 
 #include <string>
-#include <sstream>
 
 extern "C" {
   #include"markdown.h"
@@ -14,6 +14,7 @@ using namespace std;
 using namespace node;
 using namespace v8;
 using namespace v8u;
+//using namespace v8u::Version
 
 namespace robotskirt {
 
@@ -22,7 +23,7 @@ namespace robotskirt {
 #define DEFAULT_MAX_NESTING 16
 
 ////////////////////////////////////////////////////////////////////////////////
-// UTILITIES to ease wrapping and interfacing with V8: FIXME should be taken to separate HPP
+// UTILITIES to ease wrapping and interfacing with V8
 ////////////////////////////////////////////////////////////////////////////////
 
 // Credit: @samcday
@@ -506,71 +507,8 @@ protected:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// OTHER JS FUNCTIONS (Version, ...)
+// OTHER UTILITIES (version stuff, etc.)
 ////////////////////////////////////////////////////////////////////////////////
-
-class Version: public ObjectWrap {
-public:
-    V8_CL_WRAPPER("robotskirt::Version")
-    Version(int major, int minor, int revision): major_(major), minor_(minor),
-                                                 revision_(revision) {}
-    Version(Version& other): major_(other.major_), minor_(other.minor_),
-                             revision_(other.revision_) {}
-    ~Version() {}
-    V8_CL_CTOR(Version, 3) {
-        int arg0 = CheckInt(args[0]);
-        int arg1 = CheckInt(args[1]);
-        int arg2 = CheckInt(args[2]);
-        
-        inst = new Version(arg0, arg1, arg2);
-    } V8_CL_CTOR_END()
-    
-    int getMajor() const {return major_;}
-    int getMinor() const {return minor_;}
-    int getRevision() const {return revision_;}
-    
-    void setMajor(int major) {major_=major;}
-    void setMinor(int minor) {minor_=minor;}
-    void setRevision(int revision) {revision_=revision;}
-    
-    string toString() const {
-        stringstream ret;
-        ret << major_ << "." << minor_ << "." << revision_;
-        return ret.str();
-    }
-
-    V8_CL_CALLBACK(Version, ToString, 0) {
-        return scope.Close(Str(inst->toString()));
-    } V8_WRAP_END()
-    
-    V8_CL_CALLBACK(Version, Inspect, 0) {
-        return scope.Close(Str("<Version "+inst->toString()+">"));
-    } V8_WRAP_END()
-    
-    //Getters
-    V8_CL_GETTER(Version, Major) {
-        return scope.Close(Int(inst->major_));
-    } V8_WRAP_END()
-    V8_CL_GETTER(Version, Minor) {
-        return scope.Close(Int(inst->minor_));
-    } V8_WRAP_END()
-    V8_CL_GETTER(Version, Revision) {
-        return scope.Close(Int(inst->revision_));
-    } V8_WRAP_END()
-    
-    //Setters
-    V8_CL_SETTER(Version, Major) {
-        inst->major_ = CheckInt(value);
-    } V8_WRAP_END_NR()
-   V8_CL_SETTER(Version, Minor) {
-        inst->minor_ = CheckInt(value);
-    } V8_WRAP_END_NR()
-    V8_CL_SETTER(Version, Revision) {
-        inst->revision_ = CheckInt(value);
-    } V8_WRAP_END_NR()
-private:
-    int major_, minor_, revision_;
-};
 
 Local<Object> SundownVersion() {
     int major, minor, revision;
@@ -588,17 +526,6 @@ Local<Object> SundownVersion() {
 #define RENDFUNC_V8_DEF(NAME, CPPFUNC)                                         \
     prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
             RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
-
-NODE_DEF_TYPE(Version, "Version") {
-    V8_DEF_PROP(Version, Major, "major");
-    V8_DEF_PROP(Version, Minor, "minor");
-    V8_DEF_PROP(Version, Revision, "revision");
-
-    V8_DEF_METHOD(Version, ToString, "toString");
-    V8_DEF_METHOD(Version, Inspect, "inspect");
-
-    StoreTemplate("robotskirt::Version", prot);
-} NODE_DEF_TYPE_END()
 
 NODE_DEF_TYPE(RendererWrap, "Renderer") {
     RENDFUNC_V8_DEF("hrule", hrule);
@@ -626,12 +553,12 @@ NODE_DEF_TYPE(Markdown, "Markdown") {
 
 NODE_DEF_MAIN() {
     //Initialize classes
-    initVersion(target);
     initRendererWrap(target);
     initHtmlRendererWrap(target);
     initMarkdown(target);
 
-    //Versions hash
+    //Version class & hash
+    initVersion(target);
     Local<Object> versions = Obj();
     versions->Set(Symbol("sundown"), SundownVersion());
     versions->Set(Symbol("robotskirt"), (new Version(2,2,0))->Wrapped());
