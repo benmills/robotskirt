@@ -219,6 +219,52 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         return BINDER_RETURN_##RET;                                            \
     }
 
+#define BUF2_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        Persistent<Object>& obj = ((RendererWrap*)opaque)->CPPFUNC;            \
+        if (obj.IsEmpty()) {                                                   \
+            NULL_ACTION()                                                      \
+        }                                                                      \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Local<Value> args [1] = {toString(text)};                              \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = obj->CallAsFunction(Context::GetCurrent()->Global(), 1, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+#define BUF2INT_BINDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        Persistent<Object>& obj = ((RendererWrap*)opaque)->CPPFUNC;            \
+        if (obj.IsEmpty()) {                                                   \
+            NULL_ACTION()                                                      \
+        }                                                                      \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Local<Value> args [2] = {toString(text), Int(flags)};                  \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = obj->CallAsFunction(Context::GetCurrent()->Global(), 2, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
 // FORWARDERS (forward a Sundown call to its original C++ renderer)
 
 #define BUF1_FORWARDER(CPPFUNC, RET)                                           \
