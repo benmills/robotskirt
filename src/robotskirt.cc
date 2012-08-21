@@ -41,22 +41,22 @@ namespace robotskirt {
                                                               \
   NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(2, NG_JS_ARGS);
 
+//DEPRECATED: Use Int() or Uint()
 inline int64_t CheckInt(Handle<Value> value) {
-  //FIXME: don't allow floating-point values
   if (!value->IsInt32()) V8_THROW(TypeErr("You must provide an integer!"));
   return value->IntegerValue();
 }
 
-unsigned int CheckFlags(Handle<Value> hdl) {
+int CheckFlags(Handle<Value> hdl) {
   HandleScope scope;
   if (hdl->IsArray()) {
-    unsigned int ret = 0;
+    int ret = 0;
     Handle<Array> array = Handle<Array>::Cast(hdl);
     for (uint32_t i=0; i<array->Length(); i++)
-      ret |= CheckInt(array->Get(i));
+      ret |= Int(array->Get(i));
     return ret;
   }
-  return CheckInt(hdl);
+  return Int(hdl);
 }
 
 
@@ -71,10 +71,10 @@ enum CppSignature {
     void_BUF2,
     void_BUF2INT,
     void_BUF3,
+     int_BUF1,
      int_BUF2,
      int_BUF2INT,
-     int_BUF4,
-     int_BUF1
+     int_BUF4
 };
 
 // A C++ WRAPPER FOR Buf*, to ensure deallocation
@@ -311,7 +311,7 @@ RENDFUNC_DEF(hrule, BUF1, void)
 class HtmlRendererWrap: public RendererWrap {
 public:
     V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
-    HtmlRendererWrap(unsigned int flags): flags_(flags), options() {
+    HtmlRendererWrap(int flags): flags_(flags), options() {
         //FIXME:expose options (Read-only)
         sdhtml_renderer(&rend, &options, flags_);
         wrap_functions(&options);
@@ -328,10 +328,10 @@ public:
     } V8_CL_CTOR_END()
 
     V8_CL_GETTER(HtmlRendererWrap, Flags) {
-        return scope.Close(Uint(inst->flags_));
+        return scope.Close(Int(inst->flags_));
     } V8_WRAP_END()
 protected:
-    unsigned int const flags_;
+    int const flags_;
     html_renderopt options;//TODO add a virtual method getOpaque()
 };
 
@@ -344,7 +344,7 @@ protected:
 class Markdown: public ObjectWrap {
 public:
     V8_CL_WRAPPER("robotskirt::Markdown")
-    Markdown(RendererWrap* renderer, unsigned int extensions, size_t max_nesting):
+    Markdown(RendererWrap* renderer, int extensions, size_t max_nesting):
             markdown(sd_markdown_new(extensions, max_nesting, &renderer->rend, renderer)),
             renderer_(renderer), max_nesting_(max_nesting), extensions_(extensions) {
         SetPersistent<Object>(renderer_handle, renderer->handle_);
@@ -362,7 +362,7 @@ public:
             V8_THROW(TypeErr("You must provide a Renderer!"));
         RendererWrap* rend = Unwrap<RendererWrap>(obj);
 
-        unsigned int flags = 0;
+        int flags = 0;
         size_t max_nesting = DEFAULT_MAX_NESTING;
         if (args.Length()>=2) {
             flags = CheckFlags(args[1]);
@@ -381,7 +381,7 @@ public:
         return scope.Close(Uint(inst->max_nesting_));
     } V8_WRAP_END()
     V8_CL_GETTER(Markdown, Extensions) {
-        return scope.Close(Uint(inst->extensions_));
+        return scope.Close(Int(inst->extensions_));
     } V8_WRAP_END()
 
     //And the most important function(s)...
@@ -406,7 +406,7 @@ protected:
     sd_markdown* const markdown;
     RendererWrap* const renderer_;
     size_t const max_nesting_;
-    unsigned int const extensions_;
+    int const extensions_;
     Persistent<Object> renderer_handle;
 };
 
