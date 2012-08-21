@@ -41,8 +41,8 @@ namespace robotskirt {
                                                               \
   NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(2, NG_JS_ARGS);
 
-int64_t CheckInt(Handle<Value> value) {
-  HandleScope scope;//FIXME: don't allow floating-point values
+inline int64_t CheckInt(Handle<Value> value) {
+  //FIXME: don't allow floating-point values
   if (!value->IsInt32()) V8_THROW(TypeErr("You must provide an integer!"));
   return value->IntegerValue();
 }
@@ -94,6 +94,7 @@ private:
 
 // CONVERTERS (especially buf* to Local<Object>)
 
+//DEPRECATED: use toString instead
 Local<Object> toBuffer(const buf* buf) {
     HandleScope scope;
     Local<Object> ret;
@@ -107,8 +108,12 @@ void setToBuf(buf* target, Handle<Object> obj) { //FIXME: test, this can lead to
     target->asize = target->size = Buffer::Length(obj);
     Buffer::Initialize(obj);
 }
-void putToBuf(buf* target, Handle<Object> obj) { //FIXME: test, this can lead to memory leaks
-    bufput(target, (uint8_t*)Buffer::Data(obj), Buffer::Length(obj));
+inline void putToBuf(buf* target, Handle<Value> obj) {
+    String::Utf8Value str (obj);
+    bufput(target, *str, str.length());
+}
+inline Local<String> toString(const buf* buf) {
+    return String::New(reinterpret_cast<const char*>(buf->data), buf->size);
 }
 
 // FUNCTION DATA (this gets injected into CPP functions converted to JS)
@@ -180,9 +185,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         WRAPPER_CALL_##RET() ((RET(*)(buf*, void*))inst->getFunction())        \
                 (*ob,  inst->getOpaque());                                     \
         WRAPPER_POST_CALL_##RET()                                              \
-        Local<Object> ret = toBuffer(*ob);                                     \
-        ob->data = NULL;                                                       \
-        return scope.Close(ret);                                               \
+        return scope.Close(toString(*ob));                                     \
     } V8_WRAP_END()
 
 // BINDERS (call a JS function from CPP)
@@ -190,9 +193,8 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 #define BINDER_RETURN_void
 #define BINDER_RETURN_int  1
 
-#define BINDER_PRE_ERROR_void()
-#define BINDER_PRE_ERROR_int()                                                 \
-    if (!ret->BooleanValue()) return 0;
+#define BINDER_RETURN_NULL_void
+#define BINDER_RETURN_NULL_int  1
 
 #define BUF1_BINDER(CPPFUNC, RET)                                              \
     static RET CPPFUNC##_binder(struct buf *ob, void *opaque) {                \
@@ -210,18 +212,11 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         TryCatch trycatch;                                                     \
         Local<Value> ret = obj->CallAsFunction(Context::GetCurrent()->Global(), 0, args);\
         if (trycatch.HasCaught())                                              \
-            throw Persistent<Value>::New(trycatch.Exception());                \
+            V8_THROW(trycatch.Exception());                                    \
         /*Convert the result back*/                                            \
-        if (Buffer::HasInstance(ret)) {                                        \
-            putToBuf(ob, Obj(ret));                                            \
-            return BINDER_RETURN_##RET;                                        \
-        }                                                                      \
-        if (ret->IsString()) {                                                 \
-            putToBuf(ob, Buffer::New(Local<String>::Cast(ret)));               \
-            return BINDER_RETURN_##RET;                                        \
-        }                                                                      \
-        BINDER_PRE_ERROR_##RET()                                               \
-        V8_THROW(TypeErr("You should return a Buffer or a String"));           \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
     }
 
 // FORWARDERS (forward a Sundown call to its original C++ renderer)
@@ -387,29 +382,23 @@ public:
     V8_CL_GETTER(Markdown, Extensions) {
         return scope.Close(Uint(inst->extensions_));
     } V8_WRAP_END()
-    
+
     //And the most important function(s)...
     V8_CL_CALLBACK(Markdown, RenderSync, 1) {
         //Extract input
-        Local<Value> arg = args[0];
-        Handle<Object> obj;
-        if (Buffer::HasInstance(arg)) obj = Obj(arg);
-        else if (arg->IsString()) obj = Buffer::New(Local<String>::Cast(arg));
-        else V8_THROW(TypeErr("You must provide a Buffer or a String!"));
-        char* data = Buffer::Data(obj);
-        size_t length = Buffer::Length(obj);
-        
+        String::Utf8Value input (args[0]);
+
         //Prepare
         BufWrap out (bufnew(OUTPUT_UNIT));
-        
+
         //GO!!
-        sd_markdown_render(*out, (uint8_t*)data, length, inst->markdown);
-        
+        sd_markdown_render(*out,
+                           reinterpret_cast<const unsigned char*>(*input),
+                           input.length(),
+                           inst->markdown);
+
         //Finish
-        Local<Object> fastBuffer = toBuffer(*out);
-        out->data = NULL;
-        
-        return scope.Close(fastBuffer);
+        return scope.Close(toString(*out));
     } V8_WRAP_END()
     //TODO: async version of Render(...)
 protected:
