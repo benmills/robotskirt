@@ -178,7 +178,7 @@ inline v8::Persistent<v8::Value> Persist(v8::Handle<v8::Value> handle) {
 
 // Type shortcuts
 
-inline v8::Local<v8::Integer> Int(int32_t integer) {
+inline v8::Local<v8::Integer> Int(int64_t integer) {
   return v8::Integer::New(integer);
 }
 
@@ -227,15 +227,15 @@ inline v8::Local<v8::FunctionTemplate> Func(v8::InvocationCallback function) {
 
 // Type casting/unwraping shortcuts
 
-inline double Num(v8::Local<v8::Value> hdl) {
+inline double Num(v8::Handle<v8::Value> hdl) {
   return hdl->NumberValue();
 }
 
-inline int64_t Int(v8::Local<v8::Value> hdl) {
-  return hdl->IntegerValue();
+inline int32_t Int(v8::Handle<v8::Value> hdl) {
+  return hdl->Int32Value();
 }
 
-inline uint32_t Uint(v8::Local<v8::Value> hdl) {
+inline uint32_t Uint(v8::Handle<v8::Value> hdl) {
   return hdl->Uint32Value();
 }
 
@@ -243,7 +243,7 @@ inline v8::Local<v8::Object> Obj(v8::Local<v8::Value> hdl) {
   return v8::Local<v8::Object>::Cast(hdl);
 }
 
-inline bool Bool(v8::Local<v8::Value> hdl) {
+inline bool Bool(v8::Handle<v8::Value> hdl) {
   return hdl->BooleanValue();
 }
 
