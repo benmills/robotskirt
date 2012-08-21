@@ -311,8 +311,9 @@ RENDFUNC_DEF(hrule, BUF1, void)
 class HtmlRendererWrap: public RendererWrap {
 public:
     V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
-    HtmlRendererWrap(unsigned int flags): flags_(flags), options() {//TODO: custom options
-        sdhtml_renderer(&rend, &options, 0);
+    HtmlRendererWrap(unsigned int flags): flags_(flags), options() {
+        //FIXME:expose options (Read-only)
+        sdhtml_renderer(&rend, &options, flags_);
         wrap_functions(&options);
     }
     ~HtmlRendererWrap() {}
@@ -550,7 +551,7 @@ NODE_DEF_MAIN() {
     initVersion(target);
     Local<Object> versions = Obj();
     versions->Set(Symbol("sundown"), SundownVersion());
-    versions->Set(Symbol("robotskirt"), (new Version(2,2,1))->Wrapped());
+    versions->Set(Symbol("robotskirt"), (new Version(2,2,2))->Wrapped());
     target->Set(Symbol("versions"), versions);
 
     //Extension constants
