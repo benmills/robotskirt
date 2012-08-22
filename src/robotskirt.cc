@@ -162,12 +162,6 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
     (new FunctionData(func,sig,opaque))->Wrap(handle);
 }
 
-//What to do if no function set?
-#define NULL_ACTION()                                                          \
-    V8_THROW(TypeErr("No function was set for this action."));
-
-#define NULL_ACTION_R() NULL_ACTION()
-
 // WRAPPERS (call a [wrapped] CPP function from JS)
 
 #define WRAPPER_CALL_void()
@@ -229,9 +223,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         HandleScope scope;                                                     \
                                                                                \
         Persistent<Object>& obj = ((RendererWrap*)opaque)->CPPFUNC;            \
-        if (obj.IsEmpty()) {                                                   \
-            NULL_ACTION()                                                      \
-        }                                                                      \
+        if (obj.IsEmpty()) return BINDER_RETURN_NULL_##RET;                    \
                                                                                \
         /*Convert arguments*/                                                  \
         Local<Value> args [0];                                                 \
@@ -337,11 +329,12 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
 #define _RENDFUNC_SETTER(CPPFUNC, SIGNATURE)                                   \
     static V8_SETTER(CPPFUNC##_setter) {                                       \
         V8_UNWRAP(RendererWrap, info)                                          \
-        inst->rend.CPPFUNC = &CPPFUNC##_binder;                                \
         if (!Bool(value)) {                                                    \
             ClearPersistent<Object>(inst->CPPFUNC);                            \
+            inst->rend.CPPFUNC = NULL;                                         \
             return;                                                            \
         }                                                                      \
+        inst->rend.CPPFUNC = &CPPFUNC##_binder;                                \
         if (!value->IsObject()) V8_THROW(TypeErr("Value must be a function!"));\
         Local<Object> obj = Obj(value);                                        \
         if (!obj->IsCallable()) V8_THROW(TypeErr("Value must be a function!"));\
