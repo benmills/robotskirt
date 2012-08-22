@@ -188,6 +188,34 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         return scope.Close(toString(*ob));                                     \
     } V8_WRAP_END()
 
+#define BUF2_WRAPPER(CPPFUNC, RET)                                             \
+    static V8_CALLBACK(CPPFUNC##_wrapper, 1) {                                 \
+        V8_UNWRAP(FunctionData, args)                                          \
+                                                                               \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text = {(uint8_t*)(*texts), texts.length(), texts.length(), 0};    \
+                                                                               \
+        BufWrap ob (bufnew(OUTPUT_UNIT));                                      \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
+                (*ob, text,  inst->getOpaque());                               \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return scope.Close(toString(*ob));                                     \
+    } V8_WRAP_END()
+
+#define BUF2INT_WRAPPER(CPPFUNC, RET)                                          \
+    static V8_CALLBACK(CPPFUNC##_wrapper, 2) {                                 \
+        V8_UNWRAP(FunctionData, args)                                          \
+                                                                               \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text = {(uint8_t*)(*texts), texts.length(), texts.length(), 0};    \
+                                                                               \
+        BufWrap ob (bufnew(OUTPUT_UNIT));                                      \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
+                (*ob, text, Int(args[1]),  inst->getOpaque());                 \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return scope.Close(toString(*ob));                                     \
+    } V8_WRAP_END()
+
 // BINDERS (call a JS function from CPP)
 
 #define BINDER_RETURN_void
@@ -272,6 +300,22 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
         RendererWrap* rend = (RendererWrap*)opaque;                            \
         return ((RET(*)(struct buf *ob, void *opaque))rend->CPPFUNC##_orig)(   \
                 ob,                                                            \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF2_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, void *opaque) {\
+        RendererWrap* rend = (RendererWrap*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, void *opaque))rend->CPPFUNC##_orig)(   \
+                ob, text,                                                      \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF2INT_FORWARDER(CPPFUNC, RET)                                        \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
+        RendererWrap* rend = (RendererWrap*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, int flags, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, text, flags                                                \
                 rend->CPPFUNC##_opaque);                                       \
     }
 
