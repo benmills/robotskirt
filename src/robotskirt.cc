@@ -315,7 +315,7 @@ void jsFunction(Persistent<Object>& handle, void* func, CppSignature sig, Invoca
     static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
         RendererWrap* rend = (RendererWrap*)opaque;                            \
         return ((RET(*)(struct buf *ob, const struct buf *text, int flags, void *opaque))rend->CPPFUNC##_orig)(\
-                ob, text, flags                                                \
+                ob, text, flags,                                               \
                 rend->CPPFUNC##_opaque);                                       \
     }
 
