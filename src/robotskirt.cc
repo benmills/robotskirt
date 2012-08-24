@@ -138,7 +138,8 @@ Local<Object> toBuffer(const buf* buf) {
     MAKE_FAST_BUFFER(buffer, ret);
     return scope.Close(ret);
 }
-void setToBuf(buf* target, Handle<Object> obj) { //FIXME: test, this can lead to memory leaks
+//DEPRECATED: unsafe, use makeBuf instead
+void setToBuf(buf* target, Handle<Object> obj) {
     bufreset(target);
     target->data = (uint8_t*)Buffer::Data(obj);
     target->asize = target->size = Buffer::Length(obj);
@@ -150,6 +151,11 @@ inline void putToBuf(buf* target, Handle<Value> obj) {
 }
 inline Local<String> toString(const buf* buf) {
     return String::New(reinterpret_cast<const char*>(buf->data), buf->size);
+}
+inline void makeBuf(buf& target, String::Utf8Value& text) {
+  target.data = (uint8_t*)(*text);
+  target.size = target->asize = text.length();
+  target.unit = 0;
 }
 
 // FUNCTION DATA (this gets injected into CPP functions converted to JS)
@@ -232,6 +238,36 @@ Local<Object> jsFunction(void* func, CppSignature sig, PassInvocationCallback wr
         return toString(*ob);                                                  \
     }
 WRAPPERS(BUF1)
+
+#define BUF2_WRAPPER(RET)                                                      \
+    Handle<Value> BUF2_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        CheckArguments(1,args);                                                \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text;                                                              \
+        makeBuf(text, texts);                                                  \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
+                (*ob, &text,  inst->getOpaque());                              \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF2)
+
+#define BUF2INT_WRAPPER(RET)                                                   \
+    Handle<Value> BUF2INT_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        CheckArguments(2,args);                                                \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text;                                                              \
+        makeBuf(text, texts);                                                  \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, int, void*))inst->getFunction())\
+                (*ob, &text, Int(args[1]),  inst->getOpaque());                \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF2)
 
 // BINDERS (call a JS function from CPP)
 
