@@ -176,6 +176,38 @@ inline v8::Persistent<v8::Value> Persist(v8::Handle<v8::Value> handle) {
   return v8::Persistent<v8::Value>::New(handle);
 }
 
+template <class T> class Persisted {
+public:
+  inline Persisted() {};
+  inline Persisted(v8::Handle<T> value) : handle(v8::Persistent<T>::New(value)) {}
+  inline ~Persisted() {
+    if (!handle.IsEmpty()) handle.Dispose();
+  }
+  inline Persisted(Persisted<T>& other) : handle(v8::Persistent<T>::New(other.handle)) {}
+  inline v8::Persistent<T> operator*() const {
+    return handle;
+  }
+  inline Persisted<T>& operator=(const Persisted<T>& other) {
+    if (&other == this) return *this;
+    SetPersistent<T>(handle, other.handle);
+    return *this;
+  }
+  inline bool operator==(const Persisted<T>& other) const {
+    return handle==other.handle;
+  }
+  inline bool IsEmpty() const {
+    return handle.IsEmpty();
+  }
+  inline void Clear() {
+    ClearPersistent<T>(handle);
+  }
+  inline T* operator->() const {
+    return *handle;
+  }
+private:
+  v8::Persistent<T> handle;
+};
+
 // Type shortcuts
 
 inline v8::Local<v8::Integer> Int(int64_t integer) {
