@@ -154,7 +154,7 @@ inline Local<String> toString(const buf* buf) {
 }
 inline void makeBuf(buf& target, String::Utf8Value& text) {
   target.data = (uint8_t*)(*text);
-  target.size = target->asize = text.length();
+  target.size = target.asize = text.length();
   target.unit = 0;
 }
 
