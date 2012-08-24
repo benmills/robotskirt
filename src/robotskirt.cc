@@ -91,7 +91,7 @@ private:
 class HtmlRendFuncData : public RendFuncData {
 public:
   HtmlRendFuncData() : opt(new html_renderopt) {}
-  ~HtmlRendFuncData() {delete opt;}
+  ~HtmlRendFuncData() {printf("Now destroying HTML renderopts at %d!\n",opt);delete opt;}
   void* ptr() {return opt;};
 private:
   html_renderopt* const opt;
@@ -268,6 +268,48 @@ WRAPPERS(BUF2)
         return toString(*ob);                                                  \
     }
 WRAPPERS(BUF2INT)
+
+#define BUF3_WRAPPER(RET)                                                      \
+    Handle<Value> BUF3_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        CheckArguments(2,args);                                                \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text;                                                              \
+        makeBuf(text, texts);                                                  \
+                                                                               \
+        String::Utf8Value langs (args[1]);                                     \
+        buf lang;                                                              \
+        makeBuf(lang, langs);                                                  \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
+                (*ob, &text, &lang,  inst->getOpaque());                       \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF3)
+
+#define BUF4_WRAPPER(RET)                                                      \
+    Handle<Value> BUF4_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        CheckArguments(3,args);                                                \
+        String::Utf8Value texts (args[0]);                                     \
+        buf text;                                                              \
+        makeBuf(text, texts);                                                  \
+                                                                               \
+        String::Utf8Value langs (args[1]);                                     \
+        buf lang;                                                              \
+        makeBuf(lang, langs);                                                  \
+                                                                               \
+        String::Utf8Value conts (args[2]);                                     \
+        buf cont;                                                              \
+        makeBuf(cont, conts);                                                  \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
+                (*ob, &text, &lang, &cont,  inst->getOpaque());                \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF4)
 
 // BINDERS (call a JS function from CPP)
 
