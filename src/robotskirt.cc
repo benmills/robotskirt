@@ -91,7 +91,7 @@ private:
 class HtmlRendFuncData : public RendFuncData {
 public:
   HtmlRendFuncData() : opt(new html_renderopt) {}
-  ~HtmlRendFuncData() {printf("Now destroying HTML renderopts at %d!\n",opt);delete opt;}
+  ~HtmlRendFuncData() {delete opt;}
   void* ptr() {return opt;};
 private:
   html_renderopt* const opt;
@@ -291,21 +291,21 @@ WRAPPERS(BUF3)
 #define BUF4_WRAPPER(RET)                                                      \
     Handle<Value> BUF4_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
         CheckArguments(3,args);                                                \
-        String::Utf8Value texts (args[0]);                                     \
-        buf text;                                                              \
-        makeBuf(text, texts);                                                  \
+        String::Utf8Value links (args[0]);                                     \
+        buf link;                                                              \
+        makeBuf(link, links);                                                  \
                                                                                \
-        String::Utf8Value langs (args[1]);                                     \
-        buf lang;                                                              \
-        makeBuf(lang, langs);                                                  \
+        String::Utf8Value titles (args[1]);                                    \
+        buf title;                                                             \
+        makeBuf(title, titles);                                                \
                                                                                \
         String::Utf8Value conts (args[2]);                                     \
         buf cont;                                                              \
         makeBuf(cont, conts);                                                  \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
-        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
-                (*ob, &text, &lang, &cont,  inst->getOpaque());                \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, const buf*, void*))inst->getFunction())\
+                (*ob, &link, &title, &cont,  inst->getOpaque());               \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -355,7 +355,7 @@ WRAPPERS(BUF4)
         return BINDER_RETURN_##RET;                                            \
     }
 
-#define BUF2INT_BINDER(CPPFUNC, RET)                                              \
+#define BUF2INT_BINDER(CPPFUNC, RET)                                           \
     static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
         HandleScope scope;                                                     \
                                                                                \
@@ -396,6 +396,22 @@ WRAPPERS(BUF4)
         RendererData* rend = (RendererData*)opaque;                            \
         return ((RET(*)(struct buf *ob, const struct buf *text, int flags, void *opaque))rend->CPPFUNC##_orig)(\
                 ob, text, flags,                                               \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF3_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, const struct buf *lang, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, const struct buf *lang, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, text, lang,                                                \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF4_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *link, const struct buf *title, const struct buf *cont, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *link, const struct buf *title, const struct buf *cont, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, link, title, cont,                                         \
                 rend->CPPFUNC##_opaque);                                       \
     }
 
