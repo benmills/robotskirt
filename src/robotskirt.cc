@@ -3,6 +3,7 @@
 #include <node_buffer.h>
 
 #include <string>
+#include <memory>
 
 extern "C" {
   #include"markdown.h"
@@ -149,13 +150,17 @@ inline void putToBuf(buf* target, Handle<Value> obj) {
     String::Utf8Value str (obj);
     bufput(target, *str, str.length());
 }
-inline Local<String> toString(const buf* buf) {
+inline Handle<Value> toString(const buf* buf) {
+    if (!buf) return Null();
     return String::New(reinterpret_cast<const char*>(buf->data), buf->size);
 }
-inline void makeBuf(buf& target, String::Utf8Value& text) {
-  target.data = (uint8_t*)(*text);
-  target.size = target.asize = text.length();
-  target.unit = 0;
+inline void makeBuf(unique_ptr<buf>& target, unique_ptr<String::Utf8Value>& txt, Handle<Value> value) {
+  if (value->IsUndefined() || value->IsNull()) return;
+  txt.reset(new String::Utf8Value(value));
+  target.reset(new buf);
+  target->data = (uint8_t*)(**txt);
+  target->size = target->asize = txt->length();
+  target->unit = 0;
 }
 
 // FUNCTION DATA (this gets injected into CPP functions converted to JS)
@@ -241,14 +246,14 @@ WRAPPERS(BUF1)
 
 #define BUF2_WRAPPER(RET)                                                      \
     Handle<Value> BUF2_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
-        CheckArguments(1,args);                                                \
-        String::Utf8Value texts (args[0]);                                     \
-        buf text;                                                              \
-        makeBuf(text, texts);                                                  \
+        if(args.Length()<1) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
-                (*ob, &text,  inst->getOpaque());                              \
+                (*ob, text.get(),  inst->getOpaque());                         \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -256,14 +261,14 @@ WRAPPERS(BUF2)
 
 #define BUF2INT_WRAPPER(RET)                                                   \
     Handle<Value> BUF2INT_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
-        CheckArguments(2,args);                                                \
-        String::Utf8Value texts (args[0]);                                     \
-        buf text;                                                              \
-        makeBuf(text, texts);                                                  \
+        if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, int, void*))inst->getFunction())\
-                (*ob, &text, Int(args[1]),  inst->getOpaque());                \
+                (*ob, text.get(), Int(args[1]),  inst->getOpaque());           \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -271,18 +276,18 @@ WRAPPERS(BUF2INT)
 
 #define BUF3_WRAPPER(RET)                                                      \
     Handle<Value> BUF3_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
-        CheckArguments(2,args);                                                \
-        String::Utf8Value texts (args[0]);                                     \
-        buf text;                                                              \
-        makeBuf(text, texts);                                                  \
+        if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
                                                                                \
-        String::Utf8Value langs (args[1]);                                     \
-        buf lang;                                                              \
-        makeBuf(lang, langs);                                                  \
+        unique_ptr<String::Utf8Value> langs;                                   \
+        unique_ptr<buf> lang;                                                  \
+        makeBuf(lang, langs, args[1]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
-                (*ob, &text, &lang,  inst->getOpaque());                       \
+                (*ob, text.get(), lang.get(),  inst->getOpaque());             \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -290,22 +295,22 @@ WRAPPERS(BUF3)
 
 #define BUF4_WRAPPER(RET)                                                      \
     Handle<Value> BUF4_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
-        CheckArguments(3,args);                                                \
-        String::Utf8Value links (args[0]);                                     \
-        buf link;                                                              \
-        makeBuf(link, links);                                                  \
+        if(args.Length()<3) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> links;                                   \
+        unique_ptr<buf> link;                                                  \
+        makeBuf(link, links, args[0]);                                         \
                                                                                \
-        String::Utf8Value titles (args[1]);                                    \
-        buf title;                                                             \
-        makeBuf(title, titles);                                                \
+        unique_ptr<String::Utf8Value> titles;                                  \
+        unique_ptr<buf> title;                                                 \
+        makeBuf(title, titles, args[1]);                                       \
                                                                                \
-        String::Utf8Value conts (args[2]);                                     \
-        buf cont;                                                              \
-        makeBuf(cont, conts);                                                  \
+        unique_ptr<String::Utf8Value> conts;                                   \
+        unique_ptr<buf> cont;                                                  \
+        makeBuf(cont, conts, args[2]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, const buf*, void*))inst->getFunction())\
-                (*ob, &link, &title, &cont,  inst->getOpaque());               \
+                (*ob, link.get(), title.get(), cont.get(),  inst->getOpaque());\
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -317,14 +322,14 @@ WRAPPERS(BUF4)
 #define BINDER_RETURN_int  1
 
 #define BINDER_RETURN_NULL_void
-#define BINDER_RETURN_NULL_int  1
+#define BINDER_RETURN_NULL_int  0
 
 #define BUF1_BINDER(CPPFUNC, RET)                                              \
     static RET CPPFUNC##_binder(struct buf *ob, void *opaque) {                \
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Local<Value> args [0];                                                 \
+        Handle<Value> args [0];                                                \
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
@@ -342,7 +347,7 @@ WRAPPERS(BUF4)
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Local<Value> args [1] = {toString(text)};                              \
+        Handle<Value> args [1] = {toString(text)};                             \
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
@@ -360,7 +365,7 @@ WRAPPERS(BUF4)
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Local<Value> args [2] = {toString(text), Int(flags)};                  \
+        Handle<Value> args [2] = {toString(text), Int(flags)};                 \
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
@@ -378,7 +383,7 @@ WRAPPERS(BUF4)
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Local<Value> args [2] = {toString(text), toString(lang)};              \
+        Handle<Value> args [2] = {toString(text), toString(lang)};             \
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
@@ -396,7 +401,7 @@ WRAPPERS(BUF4)
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Local<Value> args [3] = {toString(link), toString(title), toString(cont)};\
+        Handle<Value> args [3] = {toString(link), toString(title), toString(cont)};\
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
@@ -508,13 +513,47 @@ WRAPPERS(BUF4)
             cb->CPPFUNC = &CPPFUNC##_forwarder;                                \
         else cb->CPPFUNC = &CPPFUNC##_binder;                                  \
     }
+
+//Special case for autolink
+#define RENDFUNC_MAKE_AL(CPPFUNC, SIGBASE, RET)                                \
+    if (!CPPFUNC.IsEmpty()) {                                                  \
+        opaque->CPPFUNC = CPPFUNC;                                             \
+        if (setCppFunction((void**)&(opaque->CPPFUNC##_orig), (void**)&(opaque->CPPFUNC##_opaque), *CPPFUNC, RET##_##SIGBASE))\
+            cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_forwarder;\
+        else cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_binder;\
+    }
         
 // Forward declaration, to make things work
 class Markdown;
 
 class RendererData {
 public:
-  RENDFUNC_DATA(hrule)
+    RENDFUNC_DATA(blockcode)
+    RENDFUNC_DATA(blockquote)
+    RENDFUNC_DATA(blockhtml)
+    RENDFUNC_DATA(header)
+    RENDFUNC_DATA(hrule)
+    RENDFUNC_DATA(list)
+    RENDFUNC_DATA(listitem)
+    RENDFUNC_DATA(paragraph)
+    RENDFUNC_DATA(table)
+    RENDFUNC_DATA(table_row)
+    RENDFUNC_DATA(table_cell)
+    RENDFUNC_DATA(autolink)
+    RENDFUNC_DATA(codespan)
+    RENDFUNC_DATA(double_emphasis)
+    RENDFUNC_DATA(emphasis)
+    RENDFUNC_DATA(image)
+    RENDFUNC_DATA(linebreak)
+    RENDFUNC_DATA(link)
+    RENDFUNC_DATA(raw_html_tag)
+    RENDFUNC_DATA(triple_emphasis)
+    RENDFUNC_DATA(strikethrough)
+    RENDFUNC_DATA(superscript)
+    RENDFUNC_DATA(entity)
+    RENDFUNC_DATA(normal_text)
+    RENDFUNC_DATA(doc_header)
+    RENDFUNC_DATA(doc_footer)
 };
 
 class RendererWrap: public ObjectWrap {
@@ -527,15 +566,90 @@ public:
     } V8_CL_CTOR_END()
     void makeRenderer(sd_callbacks* cb, RendererData* opaque) {
         memset(cb, 0, sizeof(*cb));
+        RENDFUNC_MAKE(blockcode, BUF3, void)
+        RENDFUNC_MAKE(blockquote, BUF2, void)
+        RENDFUNC_MAKE(blockhtml, BUF2, void)
+        RENDFUNC_MAKE(header, BUF2INT, void)
         RENDFUNC_MAKE(hrule, BUF1, void)
+        RENDFUNC_MAKE(list, BUF2INT, void)
+        RENDFUNC_MAKE(listitem, BUF2INT, void)
+        RENDFUNC_MAKE(paragraph, BUF2, void)
+        RENDFUNC_MAKE(table, BUF3, void)
+        RENDFUNC_MAKE(table_row, BUF2, void)
+        RENDFUNC_MAKE(table_cell, BUF2INT, void)
+        RENDFUNC_MAKE_AL(autolink, BUF2INT, int)
+        RENDFUNC_MAKE(codespan, BUF2, int)
+        RENDFUNC_MAKE(double_emphasis, BUF2, int)
+        RENDFUNC_MAKE(emphasis, BUF2, int)
+        RENDFUNC_MAKE(image, BUF4, int)
+        RENDFUNC_MAKE(linebreak, BUF1, int)
+        RENDFUNC_MAKE(link, BUF4, int)
+        RENDFUNC_MAKE(raw_html_tag, BUF2, int)
+        RENDFUNC_MAKE(triple_emphasis, BUF2, int)
+        RENDFUNC_MAKE(strikethrough, BUF2, int)
+        RENDFUNC_MAKE(superscript, BUF2, int)
+        RENDFUNC_MAKE(entity, BUF2, void)
+        RENDFUNC_MAKE(normal_text, BUF2, void)
+        RENDFUNC_MAKE(doc_header, BUF1, void)
+        RENDFUNC_MAKE(doc_footer, BUF1, void)
     }
 protected:
     void wrapRenderer(sd_callbacks* cb, RendFuncData* opaque) {
+        RENDFUNC_WRAP(blockcode, BUF3, void)
+        RENDFUNC_WRAP(blockquote, BUF2, void)
+        RENDFUNC_WRAP(blockhtml, BUF2, void)
+        RENDFUNC_WRAP(header, BUF2INT, void)
         RENDFUNC_WRAP(hrule, BUF1, void)
+        RENDFUNC_WRAP(list, BUF2INT, void)
+        RENDFUNC_WRAP(listitem, BUF2INT, void)
+        RENDFUNC_WRAP(paragraph, BUF2, void)
+        RENDFUNC_WRAP(table, BUF3, void)
+        RENDFUNC_WRAP(table_row, BUF2, void)
+        RENDFUNC_WRAP(table_cell, BUF2INT, void)
+        RENDFUNC_WRAP(autolink, BUF2INT, int)
+        RENDFUNC_WRAP(codespan, BUF2, int)
+        RENDFUNC_WRAP(double_emphasis, BUF2, int)
+        RENDFUNC_WRAP(emphasis, BUF2, int)
+        RENDFUNC_WRAP(image, BUF4, int)
+        RENDFUNC_WRAP(linebreak, BUF1, int)
+        RENDFUNC_WRAP(link, BUF4, int)
+        RENDFUNC_WRAP(raw_html_tag, BUF2, int)
+        RENDFUNC_WRAP(triple_emphasis, BUF2, int)
+        RENDFUNC_WRAP(strikethrough, BUF2, int)
+        RENDFUNC_WRAP(superscript, BUF2, int)
+        RENDFUNC_WRAP(entity, BUF2, void)
+        RENDFUNC_WRAP(normal_text, BUF2, void)
+        RENDFUNC_WRAP(doc_header, BUF1, void)
+        RENDFUNC_WRAP(doc_footer, BUF1, void)
     }
 
 // Renderer functions
+RENDFUNC_DEF(blockcode, BUF3, void)
+RENDFUNC_DEF(blockquote, BUF2, void)
+RENDFUNC_DEF(blockhtml, BUF2, void)
+RENDFUNC_DEF(header, BUF2INT, void)
 RENDFUNC_DEF(hrule, BUF1, void)
+RENDFUNC_DEF(list, BUF2INT, void)
+RENDFUNC_DEF(listitem, BUF2INT, void)
+RENDFUNC_DEF(paragraph, BUF2, void)
+RENDFUNC_DEF(table, BUF3, void)
+RENDFUNC_DEF(table_row, BUF2, void)
+RENDFUNC_DEF(table_cell, BUF2INT, void)
+RENDFUNC_DEF(autolink, BUF2INT, int)
+RENDFUNC_DEF(codespan, BUF2, int)
+RENDFUNC_DEF(double_emphasis, BUF2, int)
+RENDFUNC_DEF(emphasis, BUF2, int)
+RENDFUNC_DEF(image, BUF4, int)
+RENDFUNC_DEF(linebreak, BUF1, int)
+RENDFUNC_DEF(link, BUF4, int)
+RENDFUNC_DEF(raw_html_tag, BUF2, int)
+RENDFUNC_DEF(triple_emphasis, BUF2, int)
+RENDFUNC_DEF(strikethrough, BUF2, int)
+RENDFUNC_DEF(superscript, BUF2, int)
+RENDFUNC_DEF(entity, BUF2, void)
+RENDFUNC_DEF(normal_text, BUF2, void)
+RENDFUNC_DEF(doc_header, BUF1, void)
+RENDFUNC_DEF(doc_footer, BUF1, void)
 };
 
 class HtmlRendererWrap: public RendererWrap {
@@ -752,7 +866,32 @@ Local<Object> SundownVersion() {
             RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
 
 NODE_DEF_TYPE(RendererWrap, "Renderer") {
-    RENDFUNC_V8_DEF("hrule", hrule);
+    RENDFUNC_V8_DEF("blockcode", blockcode)
+    RENDFUNC_V8_DEF("blockquote", blockquote)
+    RENDFUNC_V8_DEF("blockhtml", blockhtml)
+    RENDFUNC_V8_DEF("header", header)
+    RENDFUNC_V8_DEF("hrule", hrule)
+    RENDFUNC_V8_DEF("list", list)
+    RENDFUNC_V8_DEF("listitem", listitem)
+    RENDFUNC_V8_DEF("paragraph", paragraph)
+    RENDFUNC_V8_DEF("table", table)
+    RENDFUNC_V8_DEF("table_row", table_row)
+    RENDFUNC_V8_DEF("table_cell", table_cell)
+    RENDFUNC_V8_DEF("autolink", autolink)
+    RENDFUNC_V8_DEF("codespan", codespan)
+    RENDFUNC_V8_DEF("double_emphasis", double_emphasis)
+    RENDFUNC_V8_DEF("emphasis", emphasis)
+    RENDFUNC_V8_DEF("image", image)
+    RENDFUNC_V8_DEF("linebreak", linebreak)
+    RENDFUNC_V8_DEF("link", link)
+    RENDFUNC_V8_DEF("raw_html_tag", raw_html_tag)
+    RENDFUNC_V8_DEF("triple_emphasis", triple_emphasis)
+    RENDFUNC_V8_DEF("strikethrough", strikethrough)
+    RENDFUNC_V8_DEF("superscript", superscript)
+    RENDFUNC_V8_DEF("entity", entity)
+    RENDFUNC_V8_DEF("normal_text", normal_text)
+    RENDFUNC_V8_DEF("doc_header", doc_header)
+    RENDFUNC_V8_DEF("doc_footer", doc_footer)
 
     StoreTemplate("robotskirt::RendererWrap", prot);
 } NODE_DEF_TYPE_END()
