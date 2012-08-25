@@ -346,7 +346,7 @@ void StoreTemplate(std::string classname, v8::Persistent<v8::FunctionTemplate> t
   //FIXME, LOW PRIORITY: make a weak ref, ensure removal when context deallocates
   std::pair<v8::Handle<v8::Context>, std::string> key (v8::Persistent<v8::Context>::New(v8::Context::GetCurrent()), classname);
   v8_wrapped_prototypes.insert(
-      std::make_pair< std::pair<v8::Handle<v8::Context>, std::string>,
+      std::pair< std::pair<v8::Handle<v8::Context>, std::string>,
                  v8::Persistent<v8::FunctionTemplate> > (key, templ)
   );
 }
