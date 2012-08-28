@@ -189,12 +189,20 @@ public:
     CppSignature getSignature() {return signature_;}
     static V8_CALLBACK(ToString, 0) {
         return scope.Close(Str("<Native function>"));
-    } V8_WRAP_END()
+    } V8_CALLBACK_END()
     static Handle<Value> Call(const Arguments& args) {
         HandleScope scope;
         V8_UNWRAP(FunctionData, args)
         return inst->wrapper_(inst, args);
     }
+    
+    NODE_DEF_TYPE("NativeFunction") {
+        V8_DEF_METHOD(ToString, "toString");
+        V8_DEF_METHOD(ToString, "inspect");
+
+        prot->InstanceTemplate()->SetCallAsFunctionHandler(Call);
+        StoreTemplate("robotskirt::FunctionData", prot);
+    } NODE_DEF_TYPE_END()
 protected:
     void* const function_;
     CppSignature const signature_;
@@ -469,7 +477,7 @@ WRAPPERS(BUF4)
         V8_UNWRAP(RendererWrap, info)                                          \
         if (inst->CPPFUNC.IsEmpty()) return scope.Close(Undefined());          \
         return scope.Close(*(inst->CPPFUNC));                                  \
-    } V8_WRAP_END()
+    } V8_GETTER_END()
 
 #define _RENDFUNC_SETTER(CPPFUNC, SIGNATURE)                                   \
     static V8_SETTER(CPPFUNC##_setter) {                                       \
@@ -483,7 +491,7 @@ WRAPPERS(BUF4)
         if (!obj->IsCallable()) V8_THROW(TypeErr("Value must be a function!"));\
                                                                                \
         inst->CPPFUNC = obj;                                                   \
-    } V8_WRAP_END_NR()
+    } V8_SETTER_END()
 
 // The final macros (defining)
 
@@ -522,7 +530,12 @@ WRAPPERS(BUF4)
             cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_forwarder;\
         else cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_binder;\
     }
-        
+
+//Define V8 accessors
+#define RENDFUNC_V8_DEF(NAME, CPPFUNC)                                         \
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
+            RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
+
 // Forward declaration, to make things work
 class Markdown;
 
@@ -593,6 +606,36 @@ public:
         RENDFUNC_MAKE(doc_header, BUF1, void)
         RENDFUNC_MAKE(doc_footer, BUF1, void)
     }
+    NODE_DEF_TYPE("Renderer") {
+        RENDFUNC_V8_DEF("blockcode", blockcode)
+        RENDFUNC_V8_DEF("blockquote", blockquote)
+        RENDFUNC_V8_DEF("blockhtml", blockhtml)
+        RENDFUNC_V8_DEF("header", header)
+        RENDFUNC_V8_DEF("hrule", hrule)
+        RENDFUNC_V8_DEF("list", list)
+        RENDFUNC_V8_DEF("listitem", listitem)
+        RENDFUNC_V8_DEF("paragraph", paragraph)
+        RENDFUNC_V8_DEF("table", table)
+        RENDFUNC_V8_DEF("table_row", table_row)
+        RENDFUNC_V8_DEF("table_cell", table_cell)
+        RENDFUNC_V8_DEF("autolink", autolink)
+        RENDFUNC_V8_DEF("codespan", codespan)
+        RENDFUNC_V8_DEF("double_emphasis", double_emphasis)
+        RENDFUNC_V8_DEF("emphasis", emphasis)
+        RENDFUNC_V8_DEF("image", image)
+        RENDFUNC_V8_DEF("linebreak", linebreak)
+        RENDFUNC_V8_DEF("link", link)
+        RENDFUNC_V8_DEF("raw_html_tag", raw_html_tag)
+        RENDFUNC_V8_DEF("triple_emphasis", triple_emphasis)
+        RENDFUNC_V8_DEF("strikethrough", strikethrough)
+        RENDFUNC_V8_DEF("superscript", superscript)
+        RENDFUNC_V8_DEF("entity", entity)
+        RENDFUNC_V8_DEF("normal_text", normal_text)
+        RENDFUNC_V8_DEF("doc_header", doc_header)
+        RENDFUNC_V8_DEF("doc_footer", doc_footer)
+
+        StoreTemplate("robotskirt::RendererWrap", prot);
+    } NODE_DEF_TYPE_END()
 protected:
     void wrapRenderer(sd_callbacks* cb, RendFuncData* opaque) {
         RENDFUNC_WRAP(blockcode, BUF3, void)
@@ -652,6 +695,12 @@ RENDFUNC_DEF(doc_header, BUF1, void)
 RENDFUNC_DEF(doc_footer, BUF1, void)
 };
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+// SUNDOWN BUNDLED RENDERERS ([X]HTML)
+////////////////////////////////////////////////////////////////////////////////
+
 class HtmlRendererWrap: public RendererWrap {
 public:
     V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
@@ -676,7 +725,15 @@ public:
 
     V8_CL_GETTER(HtmlRendererWrap, Flags) {
         return scope.Close(Int(((html_renderopt*)inst->data->ptr())->flags));
-    } V8_WRAP_END()
+    } V8_GETTER_END()
+    
+    NODE_DEF_TYPE("HtmlRenderer") {
+        V8_INHERIT("robotskirt::RendererWrap");
+
+        V8_DEF_RPROP(Flags, "flags");
+
+        StoreTemplate("robotskirt::HtmlRendererWrap", prot);
+    } NODE_DEF_TYPE_END()
 protected:
     HtmlRendFuncData* const data;
 };
@@ -720,10 +777,10 @@ public:
 
     V8_CL_GETTER(Markdown, MaxNesting) {
         return scope.Close(Uint(inst->max_nesting_));
-    } V8_WRAP_END()
+    } V8_GETTER_END()
     V8_CL_GETTER(Markdown, Extensions) {
         return scope.Close(Uint(inst->extensions_));
-    } V8_WRAP_END()
+    } V8_GETTER_END()
 
     //And the most important function(s)...
     V8_CL_CALLBACK(Markdown, RenderSync, 1) {
@@ -741,8 +798,17 @@ public:
 
         //Finish
         return scope.Close(toString(*out));
-    } V8_WRAP_END()
+    } V8_CALLBACK_END()
     //TODO: async version of Render(...)
+
+    NODE_DEF_TYPE("Markdown") {
+        V8_DEF_RPROP(Extensions, "extensions");
+        V8_DEF_RPROP(MaxNesting, "maxNesting");
+
+        V8_DEF_METHOD(RenderSync, "renderSync");
+
+        StoreTemplate("robotskirt::Markdown", prot);
+    } NODE_DEF_TYPE_END()
 protected:
     sd_markdown* markdown;
     sd_callbacks cb;
@@ -861,75 +927,15 @@ Local<Object> SundownVersion() {
 // MODULE DECLARATION
 ////////////////////////////////////////////////////////////////////////////////
 
-#define RENDFUNC_V8_DEF(NAME, CPPFUNC)                                         \
-    prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
-            RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
-
-NODE_DEF_TYPE(RendererWrap, "Renderer") {
-    RENDFUNC_V8_DEF("blockcode", blockcode)
-    RENDFUNC_V8_DEF("blockquote", blockquote)
-    RENDFUNC_V8_DEF("blockhtml", blockhtml)
-    RENDFUNC_V8_DEF("header", header)
-    RENDFUNC_V8_DEF("hrule", hrule)
-    RENDFUNC_V8_DEF("list", list)
-    RENDFUNC_V8_DEF("listitem", listitem)
-    RENDFUNC_V8_DEF("paragraph", paragraph)
-    RENDFUNC_V8_DEF("table", table)
-    RENDFUNC_V8_DEF("table_row", table_row)
-    RENDFUNC_V8_DEF("table_cell", table_cell)
-    RENDFUNC_V8_DEF("autolink", autolink)
-    RENDFUNC_V8_DEF("codespan", codespan)
-    RENDFUNC_V8_DEF("double_emphasis", double_emphasis)
-    RENDFUNC_V8_DEF("emphasis", emphasis)
-    RENDFUNC_V8_DEF("image", image)
-    RENDFUNC_V8_DEF("linebreak", linebreak)
-    RENDFUNC_V8_DEF("link", link)
-    RENDFUNC_V8_DEF("raw_html_tag", raw_html_tag)
-    RENDFUNC_V8_DEF("triple_emphasis", triple_emphasis)
-    RENDFUNC_V8_DEF("strikethrough", strikethrough)
-    RENDFUNC_V8_DEF("superscript", superscript)
-    RENDFUNC_V8_DEF("entity", entity)
-    RENDFUNC_V8_DEF("normal_text", normal_text)
-    RENDFUNC_V8_DEF("doc_header", doc_header)
-    RENDFUNC_V8_DEF("doc_footer", doc_footer)
-
-    StoreTemplate("robotskirt::RendererWrap", prot);
-} NODE_DEF_TYPE_END()
-
-NODE_DEF_TYPE(HtmlRendererWrap, "HtmlRenderer") {
-    V8_INHERIT("robotskirt::RendererWrap");
-
-    V8_DEF_RPROP(HtmlRendererWrap, Flags, "flags");
-
-    StoreTemplate("robotskirt::HtmlRendererWrap", prot);
-} NODE_DEF_TYPE_END()
-
-NODE_DEF_TYPE(Markdown, "Markdown") {
-    V8_DEF_RPROP(Markdown, Extensions, "extensions");
-    V8_DEF_RPROP(Markdown, MaxNesting, "maxNesting");
-
-    V8_DEF_METHOD(Markdown, RenderSync, "renderSync");
-
-    StoreTemplate("robotskirt::Markdown", prot);
-} NODE_DEF_TYPE_END()
-
-NODE_DEF_TYPE(FunctionData, "NativeFunction") {
-    V8_DEF_METHOD(FunctionData, ToString, "toString");
-    V8_DEF_METHOD(FunctionData, ToString, "inspect");
-
-    prot->InstanceTemplate()->SetCallAsFunctionHandler(FunctionData::Call);
-    StoreTemplate("robotskirt::FunctionData", prot);
-} NODE_DEF_TYPE_END()
-
 NODE_DEF_MAIN() {
     //Initialize classes
-    initRendererWrap(target);
-    initHtmlRendererWrap(target);
-    initMarkdown(target);
-    initFunctionData(target);
+    RendererWrap::init(target);
+    HtmlRendererWrap::init(target);
+    Markdown::init(target);
+    FunctionData::init(target);
 
     //Version class & hash
-    initVersion(target);
+    Version::init(target);
     Local<Object> versions = Obj();
     versions->Set(Symbol("sundown"), SundownVersion());
     versions->Set(Symbol("robotskirt"), (new Version(2,3,0))->Wrapped());
