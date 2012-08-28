@@ -66,47 +66,47 @@ public:
 
   V8_CL_CALLBACK(Version, ToString, 0) {
     return scope.Close(Str(inst->toString()));
-  } V8_WRAP_END()
+  } V8_CALLBACK_END()
 
   V8_CL_CALLBACK(Version, Inspect, 0) {
     return scope.Close(Str("<Version "+inst->toString()+">"));
-  } V8_WRAP_END()
+  } V8_CALLBACK_END()
 
   //Getters
   V8_CL_GETTER(Version, Major) {
     return scope.Close(Int(inst->major_));
-  } V8_WRAP_END()
+  } V8_GETTER_END()
   V8_CL_GETTER(Version, Minor) {
     return scope.Close(Int(inst->minor_));
-  } V8_WRAP_END()
+  } V8_GETTER_END()
   V8_CL_GETTER(Version, Revision) {
     return scope.Close(Int(inst->revision_));
-  } V8_WRAP_END()
+  } V8_GETTER_END()
 
   //Setters
   V8_CL_SETTER(Version, Major) {
     inst->major_ = Int(value);
-  } V8_WRAP_END_NR()
+  } V8_SETTER_END()
   V8_CL_SETTER(Version, Minor) {
     inst->minor_ = Int(value);
-  } V8_WRAP_END_NR()
+  } V8_SETTER_END()
   V8_CL_SETTER(Version, Revision) {
     inst->revision_ = Int(value);
-  } V8_WRAP_END_NR()
+  } V8_SETTER_END()
+
+  NODE_DEF_TYPE("Version") {
+    V8_DEF_PROP(Major, "major");
+    V8_DEF_PROP(Minor, "minor");
+    V8_DEF_PROP(Revision, "revision");
+
+    V8_DEF_METHOD(ToString, "toString");
+    V8_DEF_METHOD(Inspect, "inspect");
+
+    StoreTemplate("v8u::Version", prot);
+  } NODE_DEF_TYPE_END()
 private:
   int major_, minor_, revision_;
 };
-
-NODE_DEF_TYPE(Version, "Version") {
-  V8_DEF_PROP(Version, Major, "major");
-  V8_DEF_PROP(Version, Minor, "minor");
-  V8_DEF_PROP(Version, Revision, "revision");
-
-  V8_DEF_METHOD(Version, ToString, "toString");
-  V8_DEF_METHOD(Version, Inspect, "inspect");
-
-  StoreTemplate("v8u::Version", prot);
-} NODE_DEF_TYPE_END()
 
 };
 
