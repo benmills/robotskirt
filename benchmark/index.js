@@ -135,19 +135,20 @@ var bench = function() {
   var robotskirt = (function() {
     var rs = require('../build/Release/robotskirt');
     var rend = new rs.HtmlRenderer();
+    var md = new rs.Markdown(rend);
     return function(text) {
-      return rs.markdownSync(rend, text);
+      return md.renderSync(text);
     };
   })();
-  main.bench('robotskirt (reuse renderer)', robotskirt);
+  main.bench('robotskirt (reuse all)', robotskirt);
 
   var robotskirt_slow = (function() {
     var rs = require('../build/Release/robotskirt');
     return function(text) {
-      return rs.markdownSync(new rs.HtmlRenderer(), text);
+      return (new rs.Markdown(new rs.HtmlRenderer())).renderSync(text);
     };
   })();
-  main.bench('robotskirt (new renderer)', robotskirt_slow);
+  main.bench('robotskirt (new renderer and parser)', robotskirt_slow);
 
   var marked = require('marked');
   main.bench('marked', marked);

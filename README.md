@@ -1,7 +1,7 @@
 # Robotskirt
 
-Robotskirt is a simple node binding for the [Sundown](https://github.com/vmg/sundown)
-markdown parser. It was inspired by the Redcarpet gem
+Robotskirt is a [Node.JS](http://nodejs.org) binding for the [Sundown](https://github.com/vmg/sundown)
+Markdown parser. It was inspired by the Redcarpet gem
 [released by github](https://github.com/blog/832-rolling-out-the-redcarpet).  
 Eventually Robotskirt should mirror the feature set of redcarpet,
 currently it doesn't support custom renderers.

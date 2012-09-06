@@ -1,20 +1,31 @@
-#include <v8.h>
-#include <node.h>
+#include "v8u.hpp"
+#include "version.hpp"
 #include <node_buffer.h>
-#include <string>
-#include <stdlib.h>
-#include <unistd.h>
 
-using namespace std;
-using namespace node;
-using namespace v8;
+#include <string>
+#include <memory>
 
 extern "C" {
   #include"markdown.h"
   #include"html.h"
 }
 
+using namespace std;
+
+using namespace node;
+using namespace v8;
+using namespace v8u;
+//using namespace v8u::Version
+
+namespace robotskirt {
+
+// Constants taken from the official Sundown executable 
 #define OUTPUT_UNIT 64
+#define DEFAULT_MAX_NESTING 16
+
+////////////////////////////////////////////////////////////////////////////////
+// UTILITIES to ease wrapping and interfacing with V8
+////////////////////////////////////////////////////////////////////////////////
 
 // Credit: @samcday
 // http://sambro.is-super-awesome.com/2011/03/03/creating-a-proper-buffer-in-a-node-c-addon/ 
@@ -23,243 +34,935 @@ extern "C" {
     Context::GetCurrent()->Global()->Get(                     \
       String::New("Buffer")));                                \
                                                               \
-  Handle<Value> NG_JS_ARGS[3] = {                             \
-    NG_SLOW_BUFFER->handle_,                                  \
-    Integer::New(Buffer::Length(NG_SLOW_BUFFER)),             \
-    Integer::New(0)                                           \
+  Handle<Value> NG_JS_ARGS[2] = {                             \
+    NG_SLOW_BUFFER,                                           \
+    Integer::New(Buffer::Length(NG_SLOW_BUFFER))/*,           \
+    Integer::New(0) <- WITH THIS WILL THROW AN ERROR*/        \
   };                                                          \
                                                               \
-  NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(3, NG_JS_ARGS);
+  NG_FAST_BUFFER = NG_JS_BUFFER->NewInstance(2, NG_JS_ARGS);
 
-struct request {
-  Persistent<Function> callback;
-  string in;
-  buf *out; //Pass the output buffer directly
-  unsigned int flags;
-  Persistent<Object> renderer;
-};
+//DEPRECATED: Use Int() or Uint()
+inline int64_t CheckInt(Handle<Value> value) {
+  if (!value->IsInt32()) V8_THROW(TypeErr("You must provide an integer!"));
+  return value->IntegerValue();
+}
 
-////////////////////////
-// Renderer functions //
-////////////////////////
+int CheckFlags(Handle<Value> hdl) {
+  HandleScope scope;
+  if (hdl->IsArray()) {
+    int ret = 0;
+    Handle<Array> array = Handle<Array>::Cast(hdl);
+    for (uint32_t i=0; i<array->Length(); i++)
+      ret |= Int(array->Get(i));
+    return ret;
+  }
+  return Int(hdl);
+}
 
-class Renderer : public ObjectWrap {
-protected:
-  mkd_renderer* const ptr;
+unsigned int CheckUFlags(Handle<Value> hdl) {
+  HandleScope scope;
+  if (hdl->IsArray()) {
+    unsigned int ret = 0;
+    Handle<Array> array = Handle<Array>::Cast(hdl);
+    for (uint32_t i=0; i<array->Length(); i++)
+      ret |= Uint(array->Get(i));
+    return ret;
+  }
+  return Uint(hdl);
+}
+
+//A reference counter
+class RendFuncData {
 public:
-  inline Renderer() : ptr(new mkd_renderer) {}
-  inline mkd_renderer* getHandle() {return ptr;}
-  inline ~Renderer() {
-    delete ptr;
+  RendFuncData() : refs(0), unrefs(0) {}
+  void unref() {
+    unrefs++;
+    if (unrefs > refs) delete this;
   }
-  static Handle<Value> newInstance(const Arguments& args);
+  void ref() {
+    refs++;
+  }
+  virtual void* ptr() = 0;
+  virtual ~RendFuncData() {};
+private:
+  unsigned char refs;
+  unsigned char unrefs;
 };
-
-class HtmlRenderer : public Renderer {
+class HtmlRendFuncData : public RendFuncData {
 public:
-  inline HtmlRenderer(unsigned int flags) {
-    upshtml_renderer(ptr, flags);
-  }
-  inline ~HtmlRenderer() {
-    upshtml_free_renderer(ptr);
-  }
-  static Handle<Value> newInstance(const Arguments& args);
+  HtmlRendFuncData() : opt(new html_renderopt) {}
+  ~HtmlRendFuncData() {delete opt;}
+  void* ptr() {return opt;};
+private:
+  html_renderopt* const opt;
 };
 
-Handle<Value> Renderer::newInstance(const Arguments& args) {
-  HandleScope scope;
+////////////////////////////////////////////////////////////////////////////////
+// RENDER FUNCTIONS STUFF
+////////////////////////////////////////////////////////////////////////////////
 
-  (new Renderer)->Wrap(args.This());
-  return scope.Close(args.This());
-}
+// SIGNATURES
+enum CppSignature {
+    void_BUF1,
+    void_BUF2,
+    void_BUF2INT,
+    void_BUF3,
+     int_BUF1,
+     int_BUF2,
+     int_BUF2INT,
+     int_BUF4
+};
 
-Handle<Value> HtmlRenderer::newInstance(const Arguments& args) {
-  HandleScope scope;
+// A C++ WRAPPER FOR Buf*, to ensure deallocation
 
-  unsigned int flags = 0;
-  if (args.Length() >= 1) flags = args[0]->Uint32Value(); //FIXME: introduce method, allow list of flags
+class BufWrap {
+public:
+    BufWrap(buf* buf): buf_(buf) {}
+    ~BufWrap() {
+        bufrelease(buf_);
+    }
+    buf* get() {return buf_;}
+    buf* operator->() {return buf_;}
+    buf* operator*() {return buf_;}
+private:
+    buf* const buf_;
+};
 
-  (new HtmlRenderer(flags))->Wrap(args.This());
-  return scope.Close(args.This());
-}
+// CONVERTERS (especially buf* to Local<Object>)
 
-
-//////////////////////
-// Render functions //
-//////////////////////
-
-static void markdownProcess(eio_req *req);
-static int markdownAfter(eio_req *req);
-
-static void outputBufferFree(char* data, void* hint) {
-  buf* b = static_cast<buf*>(hint);
-  bufrelease(b);
-}
-
-static Handle<Value> markdown(const Arguments& args) {
-  HandleScope scope;
-  try {
-    //Check arguments
-    if (args.Length() < 3 || (!args[0]->IsObject()) || (!args[2]->IsFunction()))
-      throw Exception::TypeError(String::New("usage: markdown(renderer, input, callback, [extensions])"));
-
-    //Extract arguments
-    Local<Object> rend = args[0]->ToObject();
-    String::Utf8Value in(args[1]);
-    Local<Function> callback = Local<Function>::Cast(args[2]);
-    unsigned int flags = 0;
-    if (args.Length() >= 4) flags = args[3]->Uint32Value(); //FIXME
-
-    //Make request
-    request *sr = new request;
-    sr->callback = Persistent<Function>::New(callback);
-    sr->in = *in;
-    sr->flags = flags;
-    sr->renderer = Persistent<Object>::New(rend);
-
-    //Call process
-    eio_custom(markdownProcess, EIO_PRI_DEFAULT, markdownAfter, sr);
-    ev_ref(EV_DEFAULT_UC);
-
-    return scope.Close( Undefined() );
-  } catch (Handle<Value> h) {
-    return ThrowException(h);
-  } catch (exception e) {
-    return ThrowException(Exception::Error(String::New(e.what())));
-  }
-}
-
-static void markdownProcess(eio_req *req) {
-  //Extract request and renderer
-  request *sr = static_cast<request *>(req->data);
-  Renderer* rwrap = Renderer::Unwrap<Renderer>(sr->renderer);
-  mkd_renderer* rend = rwrap->getHandle();
-
-  // Create input buffer from string
-  struct buf *input_buf = bufnew(sr->in.size());
-//  try {FIXME: RAII
-    bufput(input_buf, sr->in.c_str(), sr->in.size());
-
-    // Create output buffer and reset size to 0
-    sr->out = bufnew(OUTPUT_UNIT);
-    sr->out->size = 0;
-
-    // Render!
-    ups_markdown(sr->out, input_buf, rend, sr->flags);
-//  } finally {
-    //Free input buffer
-    bufrelease(input_buf);
-//  }
-}
-
-static int markdownAfter(eio_req *req) {
-  HandleScope scope;
-
-  ev_unref(EV_DEFAULT_UC);
-  request *sr = static_cast<request*>(req->data);
-  Local<Value> argv[1];
-
-  // Create and assign fast buffer to arguments array
-  Buffer* buffer = Buffer::New(const_cast<char *>(sr->out->data), sr->out->size, outputBufferFree, sr->out);
-  Local<Object> fastBuffer;
-  MAKE_FAST_BUFFER(buffer, fastBuffer);
-  argv[0] = fastBuffer;
-
-  // Invoke callback function with html argument
-  TryCatch try_catch;
-  sr->callback->Call(Context::GetCurrent()->Global(), 1, argv);
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-  }
-
-  /* cleanup */
-  sr->callback.Dispose(); //FIXME: should we put this into a finally (RAII)?
-  return 0;
-}
-
-static Handle<Value> markdownSync(const Arguments &args) {
-  HandleScope scope;
-  try {
-    //Check arguments
-    if (args.Length() < 2 || (!args[0]->IsObject()))
-      throw Exception::TypeError(String::New("usage: markdown(renderer, input, [extensions])"));
-
-    //Extract arguments
-    Renderer* rwrap = Renderer::Unwrap<Renderer>(args[0]->ToObject());
-    mkd_renderer* rend = rwrap->getHandle();
-    String::Utf8Value instr (args[1]);
-    unsigned int flags = 0;
-    if (args.Length() >= 3) flags = args[2]->Uint32Value(); //FIXME
-
-    // Create input buffer from string
-    struct buf *input_buf = bufnew(instr.length());
-  //  try {FIXME: RAII
-      bufput(input_buf, *instr, instr.length());
-
-      // Create output buffer and reset size to 0
-      struct buf *out = bufnew(OUTPUT_UNIT);
-      out->size = 0;
-
-      // Render!
-      ups_markdown(out, input_buf, rend, flags);
-      
-      // Create and return fast buffer to result
-      Buffer* buffer = Buffer::New(const_cast<char *>(out->data), out->size, outputBufferFree, out);
-      Local<Object> fastBuffer;
-      MAKE_FAST_BUFFER(buffer, fastBuffer);
-  //  } finally {
-      //Free input buffer
-      bufrelease(input_buf);
-  //  }
-      return scope.Close(fastBuffer);
-  } catch (Handle<Value> h) {
-    return ThrowException(h);
-  } catch (exception e) {
-    return ThrowException(Exception::Error(String::New(e.what())));
-  }
-}
-
-
-////////////////////////
-// Module declaration //
-////////////////////////
-
-extern "C" {
-  void init (Handle<Object> target) {
+//DEPRECATED: use toString instead
+Local<Object> toBuffer(const buf* buf) {
     HandleScope scope;
+    Local<Object> ret;
+    Handle<Object> buffer = Buffer::New(String::New((char*)buf->data, buf->size));
+    MAKE_FAST_BUFFER(buffer, ret);
+    return scope.Close(ret);
+}
+//DEPRECATED: unsafe, use makeBuf instead
+void setToBuf(buf* target, Handle<Object> obj) {
+    bufreset(target);
+    target->data = (uint8_t*)Buffer::Data(obj);
+    target->asize = target->size = Buffer::Length(obj);
+    Buffer::Initialize(obj);
+}
+inline void putToBuf(buf* target, Handle<Value> obj) {
+    String::Utf8Value str (obj);
+    bufput(target, *str, str.length());
+}
+inline Handle<Value> toString(const buf* buf) {
+    if (!buf) return Null();
+    return String::New(reinterpret_cast<const char*>(buf->data), buf->size);
+}
+inline void makeBuf(unique_ptr<buf>& target, unique_ptr<String::Utf8Value>& txt, Handle<Value> value) {
+  if (value->IsUndefined() || value->IsNull()) return;
+  txt.reset(new String::Utf8Value(value));
+  target.reset(new buf);
+  target->data = (uint8_t*)(**txt);
+  target->size = target->asize = txt->length();
+  target->unit = 0;
+}
 
-    //Static functions & properties
-    target->Set(String::NewSymbol("version"), String::New("1.0.0"));
-    NODE_SET_METHOD(target, "markdown", markdown);
-    NODE_SET_METHOD(target, "markdownSync", markdownSync);
+// FUNCTION DATA (this gets injected into CPP functions converted to JS)
+class FunctionData;
+typedef v8::Handle<v8::Value> (*PassInvocationCallback)(robotskirt::FunctionData*, const v8::Arguments&);
+class FunctionData: public ObjectWrap {
+public:
+    V8_CL_WRAPPER("robotskirt::FunctionData")
+    static Handle<Value> NewInstance(const v8::Arguments& args) {
+        v8::HandleScope scope;
+        if ((args.Length()==1) && (args[0]->IsExternal())) {
+            ((FunctionData*)External::Unwrap(args[0]))->Wrap(args.This());
+            return scope.Close(args.This());
+        }
+        return ThrowException(Err("You can't instantaniate this from the JS side."));
+    }
+    FunctionData(void* function, CppSignature signature, RendFuncData* opaque, PassInvocationCallback wrapper):
+            function_(function), signature_(signature), opaque_(opaque), wrapper_(wrapper) {
+        opaque->ref();
+    }
+    ~FunctionData() {
+        opaque_->unref();
+    }
+    void* getFunction() {return function_;}
+    void* getOpaque() {return opaque_->ptr();}
+    CppSignature getSignature() {return signature_;}
+    static V8_CALLBACK(ToString, 0) {
+        return scope.Close(Str("<Native function>"));
+    } V8_CALLBACK_END()
+    static Handle<Value> Call(const Arguments& args) {
+        HandleScope scope;
+        V8_UNWRAP(FunctionData, args)
+        return inst->wrapper_(inst, args);
+    }
+    
+    NODE_DEF_TYPE("NativeFunction") {
+        V8_DEF_METHOD(ToString, "toString");
+        V8_DEF_METHOD(ToString, "inspect");
+
+        prot->InstanceTemplate()->SetCallAsFunctionHandler(Call);
+        StoreTemplate("robotskirt::FunctionData", prot);
+    } NODE_DEF_TYPE_END()
+protected:
+    void* const function_;
+    CppSignature const signature_;
+    RendFuncData* const opaque_;
+    PassInvocationCallback wrapper_;
+};
+
+// CONVERT BETWEEN CPP AND JS FUNCTIONS
+
+bool setCppFunction(void** func, void** opaque, Handle<Object> obj, CppSignature sig) {
+    HandleScope scope;
+    if (!GetTemplate("robotskirt::FunctionData")->HasInstance(obj)) return false;
+    FunctionData* data = ObjectWrap::Unwrap<FunctionData>(obj);
+    if (sig != data->getSignature()) return false;
+    *func = data->getFunction();
+    *opaque = data->getOpaque();
+    return true;
+}
+
+Local<Object> jsFunction(void* func, CppSignature sig, PassInvocationCallback wrapper, RendFuncData* opaque) {
+    return (new FunctionData(func,sig,opaque,wrapper))->Wrapped();
+}
+
+// WRAPPERS (call a [wrapped] CPP function from JS)
+
+#define W_OUTPUT_UNIT OUTPUT_UNIT
+
+#define WRAPPER_CALL_void()
+#define WRAPPER_CALL_int() int v =
+
+#define WRAPPER_POST_CALL_void()
+#define WRAPPER_POST_CALL_int()                                                \
+    if (!v) return False();
+
+#define WRAPPERS(SIGBASE)  SIGBASE##_WRAPPER(void) SIGBASE##_WRAPPER(int)
+
+// For the wrappers we don't use V8U wrapping,
+// as we don't need any of his features.
+
+#define BUF1_WRAPPER(RET)                                                      \
+    Handle<Value> BUF1_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, void*))inst->getFunction())        \
+                (*ob,  inst->getOpaque());                                     \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF1)
+
+#define BUF2_WRAPPER(RET)                                                      \
+    Handle<Value> BUF2_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        if(args.Length()<1) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
+                (*ob, text.get(),  inst->getOpaque());                         \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF2)
+
+#define BUF2INT_WRAPPER(RET)                                                   \
+    Handle<Value> BUF2INT_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, int, void*))inst->getFunction())\
+                (*ob, text.get(), Int(args[1]),  inst->getOpaque());           \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF2INT)
+
+#define BUF3_WRAPPER(RET)                                                      \
+    Handle<Value> BUF3_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> texts;                                   \
+        unique_ptr<buf> text;                                                  \
+        makeBuf(text, texts, args[0]);                                         \
+                                                                               \
+        unique_ptr<String::Utf8Value> langs;                                   \
+        unique_ptr<buf> lang;                                                  \
+        makeBuf(lang, langs, args[1]);                                         \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
+                (*ob, text.get(), lang.get(),  inst->getOpaque());             \
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF3)
+
+#define BUF4_WRAPPER(RET)                                                      \
+    Handle<Value> BUF4_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
+        if(args.Length()<3) return ThrowException(RangeErr("Not enough arguments."));\
+        unique_ptr<String::Utf8Value> links;                                   \
+        unique_ptr<buf> link;                                                  \
+        makeBuf(link, links, args[0]);                                         \
+                                                                               \
+        unique_ptr<String::Utf8Value> titles;                                  \
+        unique_ptr<buf> title;                                                 \
+        makeBuf(title, titles, args[1]);                                       \
+                                                                               \
+        unique_ptr<String::Utf8Value> conts;                                   \
+        unique_ptr<buf> cont;                                                  \
+        makeBuf(cont, conts, args[2]);                                         \
+                                                                               \
+        BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
+        WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, const buf*, void*))inst->getFunction())\
+                (*ob, link.get(), title.get(), cont.get(),  inst->getOpaque());\
+        WRAPPER_POST_CALL_##RET()                                              \
+        return toString(*ob);                                                  \
+    }
+WRAPPERS(BUF4)
+
+// BINDERS (call a JS function from CPP)
+
+#define BINDER_RETURN_void
+#define BINDER_RETURN_int  1
+
+#define BINDER_RETURN_NULL_void
+#define BINDER_RETURN_NULL_int  0
+
+#define BUF1_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, void *opaque) {                \
+        HandleScope scope;                                                     \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Handle<Value> args [0];                                                \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = ((RendererData*)opaque)->CPPFUNC->CallAsFunction(Context::GetCurrent()->Global(), 0, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+#define BUF2_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Handle<Value> args [1] = {toString(text)};                             \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = ((RendererData*)opaque)->CPPFUNC->CallAsFunction(Context::GetCurrent()->Global(), 1, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+#define BUF2INT_BINDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Handle<Value> args [2] = {toString(text), Int(flags)};                 \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = ((RendererData*)opaque)->CPPFUNC->CallAsFunction(Context::GetCurrent()->Global(), 2, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+#define BUF3_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *text, const struct buf *lang, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Handle<Value> args [2] = {toString(text), toString(lang)};             \
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = ((RendererData*)opaque)->CPPFUNC->CallAsFunction(Context::GetCurrent()->Global(), 2, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+#define BUF4_BINDER(CPPFUNC, RET)                                              \
+    static RET CPPFUNC##_binder(struct buf *ob, const struct buf *link, const struct buf *title, const struct buf *cont, void *opaque) {\
+        HandleScope scope;                                                     \
+                                                                               \
+        /*Convert arguments*/                                                  \
+        Handle<Value> args [3] = {toString(link), toString(title), toString(cont)};\
+                                                                               \
+        /*Call it!*/                                                           \
+        TryCatch trycatch;                                                     \
+        Local<Value> ret = ((RendererData*)opaque)->CPPFUNC->CallAsFunction(Context::GetCurrent()->Global(), 3, args);\
+        if (trycatch.HasCaught())                                              \
+            V8_THROW(trycatch.Exception());                                    \
+        /*Convert the result back*/                                            \
+        if (ret->IsFalse()) return BINDER_RETURN_NULL_##RET;                   \
+        putToBuf(ob, ret);                                                     \
+        return BINDER_RETURN_##RET;                                            \
+    }
+
+// FORWARDERS (forward a Sundown call to its original C++ renderer)
+
+#define BUF1_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, void *opaque) {             \
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, void *opaque))rend->CPPFUNC##_orig)(   \
+                ob,                                                            \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF2_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, text,                                                      \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF2INT_FORWARDER(CPPFUNC, RET)                                        \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, int flags, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, int flags, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, text, flags,                                               \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF3_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *text, const struct buf *lang, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *text, const struct buf *lang, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, text, lang,                                                \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+#define BUF4_FORWARDER(CPPFUNC, RET)                                           \
+    static RET CPPFUNC##_forwarder(struct buf *ob, const struct buf *link, const struct buf *title, const struct buf *cont, void *opaque) {\
+        RendererData* rend = (RendererData*)opaque;                            \
+        return ((RET(*)(struct buf *ob, const struct buf *link, const struct buf *title, const struct buf *cont, void *opaque))rend->CPPFUNC##_orig)(\
+                ob, link, title, cont,                                         \
+                rend->CPPFUNC##_opaque);                                       \
+    }
+
+//TODO
+
+////////////////////////////////////////////////////////////////////////////////
+// RENDERER CLASS DECLARATION
+////////////////////////////////////////////////////////////////////////////////
+
+// JS ACCESSORS
+
+#define _RENDFUNC_GETTER(CPPFUNC)                                              \
+    static V8_GETTER(CPPFUNC##_getter) {                                       \
+        V8_UNWRAP(RendererWrap, info)                                          \
+        if (inst->CPPFUNC.IsEmpty()) return scope.Close(Undefined());          \
+        return scope.Close(*(inst->CPPFUNC));                                  \
+    } V8_GETTER_END()
+
+#define _RENDFUNC_SETTER(CPPFUNC, SIGNATURE)                                   \
+    static V8_SETTER(CPPFUNC##_setter) {                                       \
+        V8_UNWRAP(RendererWrap, info)                                          \
+        if (!Bool(value)) {                                                    \
+            inst->CPPFUNC.Clear();                                             \
+            return;                                                            \
+        }                                                                      \
+        if (!value->IsObject()) V8_THROW(TypeErr("Value must be a function!"));\
+        Local<Object> obj = Obj(value);                                        \
+        if (!obj->IsCallable()) V8_THROW(TypeErr("Value must be a function!"));\
+                                                                               \
+        inst->CPPFUNC = obj;                                                   \
+    } V8_SETTER_END()
+
+// The final macros (defining)
+
+#define RENDFUNC_DEF(CPPFUNC, SIGBASE, RET)                                    \
+    protected: Persisted<Object> CPPFUNC;                                      \
+    public:                                                                    \
+        _RENDFUNC_GETTER(CPPFUNC)                                              \
+        _RENDFUNC_SETTER(CPPFUNC, RET##_##SIGBASE)                             \
+                                                                               \
+        SIGBASE##_FORWARDER(CPPFUNC,RET) SIGBASE##_BINDER(CPPFUNC,RET)
+
+#define RENDFUNC_DATA(CPPFUNC)                                                 \
+    void* CPPFUNC##_opaque;                                                    \
+    void* CPPFUNC##_orig;                                                      \
+    Persisted<Object> CPPFUNC;
+
+// The final macros (wrapping / making)
+
+#define RENDFUNC_WRAP(CPPFUNC, SIGBASE, RET)                                   \
+    if (cb->CPPFUNC)                                                           \
+        CPPFUNC = jsFunction((void*)cb->CPPFUNC, RET##_##SIGBASE, &SIGBASE##_wrapper_##RET, opaque);
+
+#define RENDFUNC_MAKE(CPPFUNC, SIGBASE, RET)                                   \
+    if (!CPPFUNC.IsEmpty()) {                                                  \
+        opaque->CPPFUNC = CPPFUNC;                                             \
+        if (setCppFunction((void**)&(opaque->CPPFUNC##_orig), (void**)&(opaque->CPPFUNC##_opaque), *CPPFUNC, RET##_##SIGBASE))\
+            cb->CPPFUNC = &CPPFUNC##_forwarder;                                \
+        else cb->CPPFUNC = &CPPFUNC##_binder;                                  \
+    }
+
+//Special case for autolink
+#define RENDFUNC_MAKE_AL(CPPFUNC, SIGBASE, RET)                                \
+    if (!CPPFUNC.IsEmpty()) {                                                  \
+        opaque->CPPFUNC = CPPFUNC;                                             \
+        if (setCppFunction((void**)&(opaque->CPPFUNC##_orig), (void**)&(opaque->CPPFUNC##_opaque), *CPPFUNC, RET##_##SIGBASE))\
+            cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_forwarder;\
+        else cb->CPPFUNC = (int(*)(buf*,const buf*,mkd_autolink,void*))&CPPFUNC##_binder;\
+    }
+
+//Define V8 accessors
+#define RENDFUNC_V8_DEF(NAME, CPPFUNC)                                         \
+    prot->InstanceTemplate()->SetAccessor(String::NewSymbol(NAME),             \
+            RendererWrap::CPPFUNC##_getter, RendererWrap::CPPFUNC##_setter);
+
+// Forward declaration, to make things work
+class Markdown;
+
+class RendererData {
+public:
+    RENDFUNC_DATA(blockcode)
+    RENDFUNC_DATA(blockquote)
+    RENDFUNC_DATA(blockhtml)
+    RENDFUNC_DATA(header)
+    RENDFUNC_DATA(hrule)
+    RENDFUNC_DATA(list)
+    RENDFUNC_DATA(listitem)
+    RENDFUNC_DATA(paragraph)
+    RENDFUNC_DATA(table)
+    RENDFUNC_DATA(table_row)
+    RENDFUNC_DATA(table_cell)
+    RENDFUNC_DATA(autolink)
+    RENDFUNC_DATA(codespan)
+    RENDFUNC_DATA(double_emphasis)
+    RENDFUNC_DATA(emphasis)
+    RENDFUNC_DATA(image)
+    RENDFUNC_DATA(linebreak)
+    RENDFUNC_DATA(link)
+    RENDFUNC_DATA(raw_html_tag)
+    RENDFUNC_DATA(triple_emphasis)
+    RENDFUNC_DATA(strikethrough)
+    RENDFUNC_DATA(superscript)
+    RENDFUNC_DATA(entity)
+    RENDFUNC_DATA(normal_text)
+    RENDFUNC_DATA(doc_header)
+    RENDFUNC_DATA(doc_footer)
+};
+
+class RendererWrap: public ObjectWrap {
+public:
+    V8_CL_WRAPPER("robotskirt::RendererWrap")
+    RendererWrap() {}
+    virtual ~RendererWrap() {}
+    V8_CL_CTOR(RendererWrap, 0) {
+        inst = new RendererWrap();
+    } V8_CL_CTOR_END()
+    void makeRenderer(sd_callbacks* cb, RendererData* opaque) {
+        memset(cb, 0, sizeof(*cb));
+        RENDFUNC_MAKE(blockcode, BUF3, void)
+        RENDFUNC_MAKE(blockquote, BUF2, void)
+        RENDFUNC_MAKE(blockhtml, BUF2, void)
+        RENDFUNC_MAKE(header, BUF2INT, void)
+        RENDFUNC_MAKE(hrule, BUF1, void)
+        RENDFUNC_MAKE(list, BUF2INT, void)
+        RENDFUNC_MAKE(listitem, BUF2INT, void)
+        RENDFUNC_MAKE(paragraph, BUF2, void)
+        RENDFUNC_MAKE(table, BUF3, void)
+        RENDFUNC_MAKE(table_row, BUF2, void)
+        RENDFUNC_MAKE(table_cell, BUF2INT, void)
+        RENDFUNC_MAKE_AL(autolink, BUF2INT, int)
+        RENDFUNC_MAKE(codespan, BUF2, int)
+        RENDFUNC_MAKE(double_emphasis, BUF2, int)
+        RENDFUNC_MAKE(emphasis, BUF2, int)
+        RENDFUNC_MAKE(image, BUF4, int)
+        RENDFUNC_MAKE(linebreak, BUF1, int)
+        RENDFUNC_MAKE(link, BUF4, int)
+        RENDFUNC_MAKE(raw_html_tag, BUF2, int)
+        RENDFUNC_MAKE(triple_emphasis, BUF2, int)
+        RENDFUNC_MAKE(strikethrough, BUF2, int)
+        RENDFUNC_MAKE(superscript, BUF2, int)
+        RENDFUNC_MAKE(entity, BUF2, void)
+        RENDFUNC_MAKE(normal_text, BUF2, void)
+        RENDFUNC_MAKE(doc_header, BUF1, void)
+        RENDFUNC_MAKE(doc_footer, BUF1, void)
+    }
+    NODE_DEF_TYPE("Renderer") {
+        RENDFUNC_V8_DEF("blockcode", blockcode)
+        RENDFUNC_V8_DEF("blockquote", blockquote)
+        RENDFUNC_V8_DEF("blockhtml", blockhtml)
+        RENDFUNC_V8_DEF("header", header)
+        RENDFUNC_V8_DEF("hrule", hrule)
+        RENDFUNC_V8_DEF("list", list)
+        RENDFUNC_V8_DEF("listitem", listitem)
+        RENDFUNC_V8_DEF("paragraph", paragraph)
+        RENDFUNC_V8_DEF("table", table)
+        RENDFUNC_V8_DEF("table_row", table_row)
+        RENDFUNC_V8_DEF("table_cell", table_cell)
+        RENDFUNC_V8_DEF("autolink", autolink)
+        RENDFUNC_V8_DEF("codespan", codespan)
+        RENDFUNC_V8_DEF("double_emphasis", double_emphasis)
+        RENDFUNC_V8_DEF("emphasis", emphasis)
+        RENDFUNC_V8_DEF("image", image)
+        RENDFUNC_V8_DEF("linebreak", linebreak)
+        RENDFUNC_V8_DEF("link", link)
+        RENDFUNC_V8_DEF("raw_html_tag", raw_html_tag)
+        RENDFUNC_V8_DEF("triple_emphasis", triple_emphasis)
+        RENDFUNC_V8_DEF("strikethrough", strikethrough)
+        RENDFUNC_V8_DEF("superscript", superscript)
+        RENDFUNC_V8_DEF("entity", entity)
+        RENDFUNC_V8_DEF("normal_text", normal_text)
+        RENDFUNC_V8_DEF("doc_header", doc_header)
+        RENDFUNC_V8_DEF("doc_footer", doc_footer)
+
+        StoreTemplate("robotskirt::RendererWrap", prot);
+    } NODE_DEF_TYPE_END()
+protected:
+    void wrapRenderer(sd_callbacks* cb, RendFuncData* opaque) {
+        RENDFUNC_WRAP(blockcode, BUF3, void)
+        RENDFUNC_WRAP(blockquote, BUF2, void)
+        RENDFUNC_WRAP(blockhtml, BUF2, void)
+        RENDFUNC_WRAP(header, BUF2INT, void)
+        RENDFUNC_WRAP(hrule, BUF1, void)
+        RENDFUNC_WRAP(list, BUF2INT, void)
+        RENDFUNC_WRAP(listitem, BUF2INT, void)
+        RENDFUNC_WRAP(paragraph, BUF2, void)
+        RENDFUNC_WRAP(table, BUF3, void)
+        RENDFUNC_WRAP(table_row, BUF2, void)
+        RENDFUNC_WRAP(table_cell, BUF2INT, void)
+        RENDFUNC_WRAP(autolink, BUF2INT, int)
+        RENDFUNC_WRAP(codespan, BUF2, int)
+        RENDFUNC_WRAP(double_emphasis, BUF2, int)
+        RENDFUNC_WRAP(emphasis, BUF2, int)
+        RENDFUNC_WRAP(image, BUF4, int)
+        RENDFUNC_WRAP(linebreak, BUF1, int)
+        RENDFUNC_WRAP(link, BUF4, int)
+        RENDFUNC_WRAP(raw_html_tag, BUF2, int)
+        RENDFUNC_WRAP(triple_emphasis, BUF2, int)
+        RENDFUNC_WRAP(strikethrough, BUF2, int)
+        RENDFUNC_WRAP(superscript, BUF2, int)
+        RENDFUNC_WRAP(entity, BUF2, void)
+        RENDFUNC_WRAP(normal_text, BUF2, void)
+        RENDFUNC_WRAP(doc_header, BUF1, void)
+        RENDFUNC_WRAP(doc_footer, BUF1, void)
+    }
+
+// Renderer functions
+RENDFUNC_DEF(blockcode, BUF3, void)
+RENDFUNC_DEF(blockquote, BUF2, void)
+RENDFUNC_DEF(blockhtml, BUF2, void)
+RENDFUNC_DEF(header, BUF2INT, void)
+RENDFUNC_DEF(hrule, BUF1, void)
+RENDFUNC_DEF(list, BUF2INT, void)
+RENDFUNC_DEF(listitem, BUF2INT, void)
+RENDFUNC_DEF(paragraph, BUF2, void)
+RENDFUNC_DEF(table, BUF3, void)
+RENDFUNC_DEF(table_row, BUF2, void)
+RENDFUNC_DEF(table_cell, BUF2INT, void)
+RENDFUNC_DEF(autolink, BUF2INT, int)
+RENDFUNC_DEF(codespan, BUF2, int)
+RENDFUNC_DEF(double_emphasis, BUF2, int)
+RENDFUNC_DEF(emphasis, BUF2, int)
+RENDFUNC_DEF(image, BUF4, int)
+RENDFUNC_DEF(linebreak, BUF1, int)
+RENDFUNC_DEF(link, BUF4, int)
+RENDFUNC_DEF(raw_html_tag, BUF2, int)
+RENDFUNC_DEF(triple_emphasis, BUF2, int)
+RENDFUNC_DEF(strikethrough, BUF2, int)
+RENDFUNC_DEF(superscript, BUF2, int)
+RENDFUNC_DEF(entity, BUF2, void)
+RENDFUNC_DEF(normal_text, BUF2, void)
+RENDFUNC_DEF(doc_header, BUF1, void)
+RENDFUNC_DEF(doc_footer, BUF1, void)
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// SUNDOWN BUNDLED RENDERERS ([X]HTML)
+////////////////////////////////////////////////////////////////////////////////
+
+class HtmlRendererWrap: public RendererWrap {
+public:
+    V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
+    HtmlRendererWrap(int flags): data(new HtmlRendFuncData) {
+        //FIXME:expose options (Read-only)
+        sd_callbacks cb;
+        sdhtml_renderer(&cb, (html_renderopt*)data->ptr(), flags);
+        wrapRenderer(&cb, data);
+    }
+    ~HtmlRendererWrap() {
+        data->unref();
+    }
+    V8_CL_CTOR(HtmlRendererWrap, 0) {
+        //Extract arguments
+        unsigned int flags = 0;
+        if (args.Length() >= 1) {
+            flags = CheckFlags(args[0]);
+        }
+
+        inst = new HtmlRendererWrap(flags);
+    } V8_CL_CTOR_END()
+
+    V8_CL_GETTER(HtmlRendererWrap, Flags) {
+        return scope.Close(Int(((html_renderopt*)inst->data->ptr())->flags));
+    } V8_GETTER_END()
+    
+    NODE_DEF_TYPE("HtmlRenderer") {
+        V8_INHERIT("robotskirt::RendererWrap");
+
+        V8_DEF_RPROP(Flags, "flags");
+
+        StoreTemplate("robotskirt::HtmlRendererWrap", prot);
+    } NODE_DEF_TYPE_END()
+protected:
+    HtmlRendFuncData* const data;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MARKDOWN CLASS DECLARATION
+////////////////////////////////////////////////////////////////////////////////
+
+class Markdown: public ObjectWrap {
+public:
+    V8_CL_WRAPPER("robotskirt::Markdown")
+    Markdown(RendererWrap* renderer, unsigned int extensions, size_t max_nesting):
+            max_nesting_(max_nesting), extensions_(extensions) {
+        markdown = makeMarkdown(renderer, &cb, &opaque, extensions, max_nesting);
+    }
+    ~Markdown() {
+        sd_markdown_free(markdown);
+    }
+    V8_CL_CTOR(Markdown, 1) {
+        //Check & extract arguments
+        if (!args[0]->IsObject()) V8_THROW(TypeErr("You must provide a Renderer!"));
+        Local<Object> obj = Obj(args[0]);
+
+        if (!GetTemplate("robotskirt::RendererWrap")->HasInstance(obj))
+            V8_THROW(TypeErr("You must provide a Renderer!"));
+        RendererWrap* rend = Unwrap<RendererWrap>(obj);
+
+        unsigned int extensions = 0;
+        size_t max_nesting = DEFAULT_MAX_NESTING;
+        if (args.Length()>=2) {
+            extensions = CheckUFlags(args[1]);
+            if (args.Length()>=3) {
+                max_nesting = Uint(args[2]);
+            }
+        }
+
+        inst = new Markdown(rend, extensions, max_nesting);
+    } V8_CL_CTOR_END()
+
+    V8_CL_GETTER(Markdown, MaxNesting) {
+        return scope.Close(Uint(inst->max_nesting_));
+    } V8_GETTER_END()
+    V8_CL_GETTER(Markdown, Extensions) {
+        return scope.Close(Uint(inst->extensions_));
+    } V8_GETTER_END()
+
+    //And the most important function(s)...
+    V8_CL_CALLBACK(Markdown, RenderSync, 1) {
+        //Extract input
+        String::Utf8Value input (args[0]);
+
+        //Prepare
+        BufWrap out (bufnew(OUTPUT_UNIT));
+
+        //GO!!
+        sd_markdown_render(*out,
+                           reinterpret_cast<const unsigned char*>(*input),
+                           input.length(),
+                           inst->markdown);
+
+        //Finish
+        return scope.Close(toString(*out));
+    } V8_CALLBACK_END()
+    //TODO: async version of Render(...)
+
+    NODE_DEF_TYPE("Markdown") {
+        V8_DEF_RPROP(Extensions, "extensions");
+        V8_DEF_RPROP(MaxNesting, "maxNesting");
+
+        V8_DEF_METHOD(RenderSync, "renderSync");
+
+        StoreTemplate("robotskirt::Markdown", prot);
+    } NODE_DEF_TYPE_END()
+protected:
+    sd_markdown* markdown;
+    sd_callbacks cb;
+    RendererData opaque;
+    size_t const max_nesting_;
+    int const extensions_;
+private:
+    static sd_markdown* makeMarkdown(RendererWrap* rend,
+            sd_callbacks* cb, RendererData* opaque,
+            unsigned int extensions, size_t max_nesting) {
+        rend->makeRenderer(cb, opaque);
+        return sd_markdown_new(extensions, max_nesting, cb, opaque);
+    }
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// HTML Renderer options
+////////////////////////////////////////////////////////////////////////////////
+
+//class TocData: public ObjectWrap {
+//private:
+//    html_renderopt* handle;
+//    int current_level_, level_offset_;
+//public:
+//    int getHeaderCount() const {return handle.header_count;}
+//    int getCurrentLevel() const {return current_level_;}
+//    int getLevelOffset() const {return level_offset_;}
+//
+//    void setHeaderCount(int header_count) {handle.header_count=header_count;}
+//    void setCurrentLevel(int current_level) {current_level_ = current_level;}
+//    void setLevelOffset(int level_offset) {level_offset_ = level_offset;}
+//    
+//    TocData() {}
+//    TocData(int header_count, int current_level, int level_offset) {
+//        handle.header_count = header_count;
+//        handle.current_level = current_level;
+//        handle.level_offset = level_offset;
+//    }
+//    TocData(TocData& other) : handle(other.handle) {}
+//    ~TocData() {}
+//    
+//    static V8_CALLBACK(New, 0) {
+//        int arg0 = 0;
+//        int arg1 = 0;
+//        int arg2 = 0;
+//        
+//        //Extract arguments
+//        if (args.Length() >= 1) {
+//            arg0 = CheckInt(args[0]);
+//            if (args.Length() >= 2) {
+//                arg1 = CheckInt(args[1]);
+//                if (args.Length() >= 3) {
+//                    arg2 = CheckInt(args[2]);
+//                }
+//            }
+//        }
+//        
+//        (new TocData(arg0, arg1, arg2))->Wrap(args.This());
+//        return args.This();
+//    } V8_WRAP_END()
+//
+//    //Getters
+//    static V8_GETTER(GetHeaderCount) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        return scope.Close(Integer::New(h.handle.header_count));
+//    } V8_WRAP_END()
+//    static V8_GETTER(GetCurrentLevel) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        return scope.Close(Integer::New(h.current_level_));
+//    } V8_WRAP_END()
+//    static V8_GETTER(GetLevelOffset) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        return scope.Close(Integer::New(h.level_offset_));
+//    } V8_WRAP_END()
+//
+//    //Setters
+//    static V8_SETTER(SetHeaderCount) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        h.handle.header_count = CheckInt(value);
+//    } V8_WRAP_END_NR()
+//    static V8_SETTER(SetCurrentLevel) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        h.current_level_ = CheckInt(value);
+//    } V8_WRAP_END_NR()
+//    static V8_SETTER(SetLevelOffset) {
+//        TocData& h = *(Unwrap<TocData>(info.Holder()));
+//        h.level_offset_ = CheckInt(value);
+//    } V8_WRAP_END_NR()
+//};
+
+//class HtmlOptions: public ObjectWrap {
+//private:
+//    unsigned int flags = 0;
+//public:
+//    
+//};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// OTHER UTILITIES (version stuff, etc.)
+////////////////////////////////////////////////////////////////////////////////
+
+Local<Object> SundownVersion() {
+    int major, minor, revision;
+    sd_version(&major, &minor, &revision);
+    Version* ret = new Version(major, minor, revision);
+    return ret->Wrapped();
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MODULE DECLARATION
+////////////////////////////////////////////////////////////////////////////////
+
+NODE_DEF_MAIN() {
+    //Initialize classes
+    RendererWrap::init(target);
+    HtmlRendererWrap::init(target);
+    Markdown::init(target);
+    FunctionData::init(target);
+
+    //Version class & hash
+    Version::init(target);
+    Local<Object> versions = Obj();
+    versions->Set(Symbol("sundown"), SundownVersion());
+    versions->Set(Symbol("robotskirt"), (new Version(2,3,2))->Wrapped());
+    target->Set(Symbol("versions"), versions);
 
     //Extension constants
-    target->Set(String::NewSymbol("EXT_AUTOLINK"), Integer::New(MKDEXT_AUTOLINK));
-    target->Set(String::NewSymbol("EXT_FENCED_CODE"), Integer::New(MKDEXT_FENCED_CODE));
-    target->Set(String::NewSymbol("EXT_LAX_HTML_BLOCKS"), Integer::New(MKDEXT_LAX_HTML_BLOCKS));
-    target->Set(String::NewSymbol("EXT_NO_INTRA_EMPHASIS"), Integer::New(MKDEXT_NO_INTRA_EMPHASIS));
-    target->Set(String::NewSymbol("EXT_SPACE_HEADERS"), Integer::New(MKDEXT_SPACE_HEADERS));
-    target->Set(String::NewSymbol("EXT_STRIKETHROUGH"), Integer::New(MKDEXT_STRIKETHROUGH));
-    target->Set(String::NewSymbol("EXT_TABLES"), Integer::New(MKDEXT_TABLES));
+    target->Set(Symbol("EXT_AUTOLINK"), Int(MKDEXT_AUTOLINK));
+    target->Set(Symbol("EXT_FENCED_CODE"), Int(MKDEXT_FENCED_CODE));
+    target->Set(Symbol("EXT_LAX_SPACING"), Int(MKDEXT_LAX_SPACING));
+    target->Set(Symbol("EXT_NO_INTRA_EMPHASIS"), Int(MKDEXT_NO_INTRA_EMPHASIS));
+    target->Set(Symbol("EXT_SPACE_HEADERS"), Int(MKDEXT_SPACE_HEADERS));
+    target->Set(Symbol("EXT_STRIKETHROUGH"), Int(MKDEXT_STRIKETHROUGH));
+    target->Set(Symbol("EXT_SUPERSCRIPT"), Int(MKDEXT_SUPERSCRIPT));
+    target->Set(Symbol("EXT_TABLES"), Int(MKDEXT_TABLES));
 
-    //TODO: html renderer flags
+    //Html renderer flags
+    target->Set(Symbol("HTML_SKIP_HTML"), Int(HTML_SKIP_HTML));
+    target->Set(Symbol("HTML_SKIP_STYLE"), Int(HTML_SKIP_STYLE));
+    target->Set(Symbol("HTML_SKIP_IMAGES"), Int(HTML_SKIP_IMAGES));
+    target->Set(Symbol("HTML_SKIP_LINKS"), Int(HTML_SKIP_LINKS));
+    target->Set(Symbol("HTML_EXPAND_TABS"), Int(HTML_EXPAND_TABS));
+    target->Set(Symbol("HTML_SAFELINK"), Int(HTML_SAFELINK));
+    target->Set(Symbol("HTML_TOC"), Int(HTML_TOC));
+    target->Set(Symbol("HTML_HARD_WRAP"), Int(HTML_HARD_WRAP));
+    target->Set(Symbol("HTML_USE_XHTML"), Int(HTML_USE_XHTML));
+    target->Set(Symbol("HTML_ESCAPE"), Int(HTML_ESCAPE));
+} NODE_DEF_MAIN_END(robotskirt)
 
-    //Renderer class
-    Local<FunctionTemplate> rendL = FunctionTemplate::New(&Renderer::newInstance);
-    Persistent<FunctionTemplate> rend = Persistent<FunctionTemplate>::New(rendL);
-    rend->InstanceTemplate()->SetInternalFieldCount(1);
-    rend->SetClassName(String::NewSymbol("Renderer"));
-
-    target->Set(String::NewSymbol("Renderer"), rend->GetFunction());
-
-    //Standard HTML renderer class
-    Local<FunctionTemplate> htmlrendL = FunctionTemplate::New(&HtmlRenderer::newInstance);
-    Persistent<FunctionTemplate> htmlrend = Persistent<FunctionTemplate>::New(htmlrendL);
-    htmlrend->InstanceTemplate()->SetInternalFieldCount(1);
-    htmlrend->Inherit(rend);
-    htmlrend->SetClassName(String::NewSymbol("HtmlRenderer"));
-
-    target->Set(String::NewSymbol("HtmlRenderer"), htmlrend->GetFunction());
-  }
-  NODE_MODULE(robotskirt, init)
 }
+
