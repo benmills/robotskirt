@@ -22,8 +22,9 @@
 , "engines": { "node": ">= 0.6" }
 , "scripts": { "publish": "node-waf configure build" }
 , "directories": { "bin": "bin"
-                 , "lib": "lib"
+                 , "src": "src"
                  , "man": "man"
+                 , "doc": "doc"
                  , "example": "examples"
                  }
 
