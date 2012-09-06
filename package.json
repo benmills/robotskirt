@@ -1,7 +1,7 @@
 { "name": "robotskirt"
 , "description": "A node wrapper for the awesome C markdown parsing library, sundown."
 , "keywords": ["sundown", "upskirt", "robot", "markdown", "mkd"]
-, "version": "2.3.1"
+, "version": "2.3.2"
 , "homepage": "http://benmills.org/robotskirt"
 
 , "author": "Ben Mills <ben@bmdev.org>"
