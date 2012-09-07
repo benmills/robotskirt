@@ -1,14 +1,35 @@
 { "name": "robotskirt"
 , "description": "A node wrapper for the awesome C markdown parsing library, sundown."
-, "tags": ["sundown", "upskirt", "robot", "markdown", "mkd"]
-, "author" : "Ben Mills <ben@bmdev.org>, Xavier Mendez <jmendeth@gmail.com>"
-, "version": "1.0.0"
-, "lib": "./build/Release"
-, "main": "./index.js"
+, "keywords": ["sundown", "upskirt", "robot", "markdown", "mkd"]
+, "version": "2.3.2"
+, "homepage": "http://benmills.org/robotskirt"
+
+, "author": "Ben Mills <ben@bmdev.org>"
+, "maintainers": [ "Ben Mills <ben@bmdev.org>"
+                 , "Xavier Mendez <jmendeth@gmail.com>"
+                 ]
+, "contributors": [ "Ben Mills <ben@bmdev.org>"
+                  , "Xavier Mendez <jmendeth@gmail.com>"
+                  , "Farrin Reid <blakmatrix@gmail.com>"
+                  , "Jeremy Kahn <jeremyckahn@gmail.com>"
+                  , "lhagan <luke@lukehagan.com>"
+                  , "Ryan Graham <r.m.graham@gmail.com>"
+                  , "tbranyen <tim@tabdeveloper.com>"
+                  ]
+
+, "main": "./build/Release/robotskirt"
+, "man": ["man/robotskirt.1"]
+, "engines": { "node": ">= 0.6" }
 , "scripts": { "publish": "node-waf configure build" }
-, "repository" : { "type" : "git"
-                 , "url" : "http://github.com/benmills/robotskirt.git"
+, "directories": { "bin": "bin"
+                 , "src": "src"
+                 , "man": "man"
+                 , "doc": "doc"
+                 , "example": "examples"
                  }
-, "bugs" : { "url" : "http://github.com/benmills/robotskirt/issues" }
-, "engines": { "node": "~0.6" }
+
+, "repository": { "type": "git"
+                , "url": "https://github.com/benmills/robotskirt.git"
+                }
+, "bugs": { "url": "https://github.com/benmills/robotskirt/issues" }
 }
