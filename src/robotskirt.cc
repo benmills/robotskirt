@@ -187,7 +187,7 @@ public:
     void* getFunction() {return function_;}
     void* getOpaque() {return opaque_->ptr();}
     CppSignature getSignature() {return signature_;}
-    static V8_CALLBACK(ToString, 0) {
+    static V8_CALLBACK(ToString) {
         return scope.Close(Str("<Native function>"));
     } V8_CALLBACK_END()
     static Handle<Value> Call(const Arguments& args) {
@@ -574,7 +574,7 @@ public:
     V8_CL_WRAPPER("robotskirt::RendererWrap")
     RendererWrap() {}
     virtual ~RendererWrap() {}
-    V8_CL_CTOR(RendererWrap, 0) {
+    V8_CL_CTOR(RendererWrap) {
         inst = new RendererWrap();
     } V8_CL_CTOR_END()
     void makeRenderer(sd_callbacks* cb, RendererData* opaque) {
@@ -713,7 +713,7 @@ public:
     ~HtmlRendererWrap() {
         data->unref();
     }
-    V8_CL_CTOR(HtmlRendererWrap, 0) {
+    V8_CL_CTOR(HtmlRendererWrap) {
         //Extract arguments
         unsigned int flags = 0;
         if (args.Length() >= 1) {
@@ -754,8 +754,9 @@ public:
     ~Markdown() {
         sd_markdown_free(markdown);
     }
-    V8_CL_CTOR(Markdown, 1) {
+    V8_CL_CTOR(Markdown) {
         //Check & extract arguments
+        CheckArguments(1, args);
         if (!args[0]->IsObject()) V8_THROW(TypeErr("You must provide a Renderer!"));
         Local<Object> obj = Obj(args[0]);
 
@@ -783,8 +784,9 @@ public:
     } V8_GETTER_END()
 
     //And the most important function(s)...
-    V8_CL_CALLBACK(Markdown, RenderSync, 1) {
+    V8_CL_CALLBACK(Markdown, RenderSync) {
         //Extract input
+        CheckArguments(1, args);
         String::Utf8Value input (args[0]);
 
         //Prepare
@@ -915,10 +917,9 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 
 Local<Object> SundownVersion() {
-    int major, minor, revision;
-    sd_version(&major, &minor, &revision);
-    Version* ret = new Version(major, minor, revision);
-    return ret->Wrapped();
+    return (new Version(SUNDOWN_VER_MAJOR,
+                        SUNDOWN_VER_MINOR,
+                        SUNDOWN_VER_REVISION))->Wrapped();
 }
 
 
