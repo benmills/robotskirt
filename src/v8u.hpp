@@ -92,10 +92,9 @@ inline void CheckArguments(int min, const v8::Arguments& args) {
 #define V8_S_CALLBACK(IDENTIFIER)                                              \
   v8::Handle<v8::Value> IDENTIFIER(const v8::Arguments& args)
 
-#define V8_CALLBACK(IDENTIFIER, MIN)                                           \
+#define V8_CALLBACK(IDENTIFIER)                                                \
 V8_S_CALLBACK(IDENTIFIER) {                                                    \
-  V8_WRAP_START()                                                              \
-    CheckArguments(MIN, args);
+  V8_WRAP_START()
 
 #define V8_CALLBACK_END() V8_WRAP_END() }
 
@@ -124,7 +123,7 @@ V8_S_SETTER(IDENTIFIER) {                                                      \
 
 // Class-specific templates
 
-#define V8_CL_CTOR(CPP_TYPE, MIN)                                              \
+#define V8_CL_CTOR(CPP_TYPE)                                                   \
 static V8_S_CALLBACK(NewInstance) {                                            \
   if ((args.Length()==1) && (args[0]->IsExternal())) {                         \
     ((CPP_TYPE*)v8::External::Unwrap(args[0]))->Wrap(args.This());             \
@@ -133,7 +132,6 @@ static V8_S_CALLBACK(NewInstance) {                                            \
   if (!args.IsConstructCall())                                                 \
     return v8::ThrowException(v8u::ReferenceErr("You must call this as a constructor"));\
   V8_WRAP_START()                                                              \
-  CheckArguments(MIN, args);                                                   \
   CPP_TYPE* inst;
 
 #define V8_CL_CTOR_END()                                                       \
@@ -149,8 +147,8 @@ V8_CALLBACK_END()
   static V8_SETTER(Setter__##CPP_VAR)                                          \
     V8_UNWRAP(CPP_TYPE, info)
 
-#define V8_CL_CALLBACK(CPP_TYPE, IDENTIFIER, MIN)                              \
-  static V8_CALLBACK(IDENTIFIER, MIN)                                          \
+#define V8_CL_CALLBACK(CPP_TYPE, IDENTIFIER)                                   \
+  static V8_CALLBACK(IDENTIFIER)                                               \
     V8_UNWRAP(CPP_TYPE, args)
 
 #define V8_CL_WRAPPER(CLASSNAME)                                               \
@@ -166,7 +164,7 @@ V8_CALLBACK_END()
                                                                                \
     if (handle_.IsEmpty()) {                                                   \
       v8::Handle<v8::Value> args [1] = {v8::External::New(this)};              \
-      GetTemplate(CLASSNAME)->GetFunction()->NewInstance(1,args);              \
+      v8u::GetTemplate(CLASSNAME)->GetFunction()->NewInstance(1,args);         \
     }                                                                          \
     return scope.Close(handle_);                                               \
   }
@@ -310,7 +308,7 @@ inline bool Bool(v8::Handle<v8::Value> hdl) {
 #define V8_DEF_METHOD(CPP_METHOD, V8_NAME)                                     \
   NODE_SET_PROTOTYPE_METHOD(prot, V8_NAME, CPP_METHOD);
 
-#define V8_INHERIT(CLASSNAME) prot->Inherit(GetTemplate(CLASSNAME));
+#define V8_INHERIT(CLASSNAME) prot->Inherit(v8u::GetTemplate(CLASSNAME));
 
 // Templates for definition methods on Node
 

@@ -42,7 +42,8 @@ public:
   Version(Version& other): major_(other.major_), minor_(other.minor_),
                            revision_(other.revision_) {}
   ~Version() {}
-  V8_CL_CTOR(Version, 3) {
+  V8_CL_CTOR(Version) {
+    CheckArguments(3, args);
     int arg0 = Int(args[0]);
     int arg1 = Int(args[1]);
     int arg2 = Int(args[2]);
@@ -64,11 +65,11 @@ public:
     return ret.str();
   }
 
-  V8_CL_CALLBACK(Version, ToString, 0) {
+  V8_CL_CALLBACK(Version, ToString) {
     return scope.Close(Str(inst->toString()));
   } V8_CALLBACK_END()
 
-  V8_CL_CALLBACK(Version, Inspect, 0) {
+  V8_CL_CALLBACK(Version, Inspect) {
     return scope.Close(Str("<Version "+inst->toString()+">"));
   } V8_CALLBACK_END()
 
