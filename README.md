@@ -4,20 +4,21 @@ Robotskirt is a [Node.JS](http://nodejs.org) wrapper for the [Sundown](https://g
 library.
 
 It was inspired by the Redcarpet gem [released by GitHub](https://github.com/blog/832-rolling-out-the-redcarpet) (the bindings to [Ruby](http://www.ruby-lang.org)).  
-With the arrival of version 2 after much work, Robotskirt now mirrors every feature of Redcarpet, see below. It even has additional features!
+With the arrival of version 2 after much work, Robotskirt now mirrors every feature of Redcarpet, see below.  
+It even has additional features!
 
 Full documentation can be found under the `doc` folder.  
 Robotskirt is distributed under the **MIT license**, see `LICENSE`.
 
 ## Performance
 
-Thanks to Sundown, Robotskirt is able to render markdown many times faster than  
-other Markdown libraries. With v2, efforts have been put to make it even lighter.
+Thanks to Sundown, Robotskirt is able to render markdown many times faster than other Markdown libraries.  
+With v2, efforts have been put to make it even lighter.
 
 Robotskirt includes a small script to benchmark it against other popular markdown libraries.  
 It runs the official Markdown test suite 1000 times with each item.
 
-Results on a Thinkpad T400 running Ubuntu 12.04 and  
+Results on a Thinkpad T400 running Ubuntu 12.04 and
 Node 0.8.8 (currently the latest stable version):
 
 ```bash
@@ -43,7 +44,8 @@ npm install robotskirt
 **Important:** you *don't need* to have Sundown installed: Robotskirt comes bundled  
 with a specific Sundown version. Just install Robotskirt as any other module.
 
-Robotskirt uses `node-waf` to compile (although we'll switch to [Node-GYP](https://github.com/TooTallNate/node-gyp) soon).
+Robotskirt uses `node-waf` to compile
+(although we'll switch to [Node-GYP](https://github.com/TooTallNate/node-gyp) soon).
 
 ## Getting started
 
@@ -53,7 +55,9 @@ We recommend you to learn both (hey, it's just two classes!) and see the [exampl
 
 ## The Normal Way
 
-To parse Markdown, we first need a **renderer**. It takes the parsed Markdown, and produces the final output (can be HTML, XHTML, [ANSI](https://github.com/benmills/robotskirt/blob/master/examples/ansi-rend.js), plain text, ...).
+To parse Markdown, we first need a **renderer**. It takes the parsed Markdown,  
+and produces the final output (can be HTML, XHTML,
+[ANSI](https://github.com/benmills/robotskirt/blob/master/examples/ansi-rend.js), plain text, ...).
 
 On most cases you will use Sundown's (X)HTML renderer:
 
@@ -76,14 +80,17 @@ parser.render('Hey, *this* is `code` with ÚŦF châracters!')
 ```
 
 **Always reuse yor parsers/renderers!** As you can see in the [benchmark](#performance),  
-making and using the same pair to render everything saves a _lot_ of time. If you can't reuse them (for example, because the flags are supplied by the user), consider using [the convenience way](#the-convenience-way).
+making and using the same pair to render everything saves a _lot_ of time.  
+If you can't reuse them (for example, because the flags are supplied by the user),  
+consider using [the convenience way](#the-convenience-way).
 
 OK. Want to customize the output a bit? Keep reading.
 
 ### Using markdown extensions
 
 Just using `new Markdown(renderer)` will parse **pure markdown**.
-However, you can have it understand special _extensions_ such as fenced code blocks,
+However, you can have it  
+understand special _extensions_ such as fenced code blocks,
 strikethrough, tables and more!
 
 For example, the following will enable tables and autolinking:
@@ -115,9 +122,8 @@ Robotskirt will take care of the encoding and decoding tasks for you.
 ### Custom renderers!
 
 A renderer is just a set of functions.  
-Each time the parser finds a piece of Markdown (for example, a link) it'll call
-the appropiate function in the renderer. If the function is not set (i.e. `undefined`),
-the Markdown will be skipped or copied untouched.
+Each time the parser finds a piece of Markdown it'll call the appropiate function in the renderer.  
+If the function is not set (`undefined`), the Markdown will be skipped or copied untouched.
 
 Some use cases of custom renderers:
 
@@ -128,7 +134,7 @@ var renderer = new rs.HtmlRenderer();
 renderer.blockcode = function (code, language) {
   if (language === undefined) {
     //No language was provided, don't highlight
-    return '<pre>' + code + '</pre>';
+    return '<pre>' + escapeHtml(code) + '</pre>';
   }
   return pygments.highlight(code, {"lang": language, "indent": 2});
 };
@@ -164,7 +170,8 @@ parser.render('This becomes http://autolink.ed in XHTML!');
 // '<p>This becomes <a href="http://autolink.ed">http://autolink.ed</a> in XHTML!</p>\n'
 ```
 
-Keep in mind that **no other types of renderer can be chosen**, and **you don't have access to the HTML renderer used**.
+Keep in mind that **no other types of renderer can be chosen**,  
+and **you don't have access to the HTML renderer used**.
 
 ## Examples
 
