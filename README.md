@@ -23,12 +23,12 @@ Node 0.8.8 (currently the latest stable version):
 
 ```bash
 $ node benchmark --bench
-[1] robotskirt (reuse all) completed in 1363ms.
-[2] robotskirt (convenience, reuse all) completed in 1359ms.
-[3] robotskirt (new renderer and parser) completed in 3853ms.
-[4] robotskirt (convenience, new parser) completed in 1545ms.
-[5] marked completed in 3874ms.
-[6] discount completed in 6122ms.
+[1] robotskirt (reuse all) completed in 1350ms.
+[2] robotskirt (convenience, reuse all) completed in 1353ms.
+[3] robotskirt (new renderer and parser) completed in 3816ms.
+[4] robotskirt (convenience, new parser) completed in 1534ms.
+[5] marked completed in 3842ms.
+[6] discount completed in 6025ms.
 6 targets benchmarked successfully.
 ```
 
