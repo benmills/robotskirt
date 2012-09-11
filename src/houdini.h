@@ -1,11 +1,11 @@
-#ifndef HOUDINI_H__
-#define HOUDINI_H__
-
-#include "buffer.h"
+#ifndef __HOUDINI_H__
+#define __HOUDINI_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "buffer.h"
 
 #ifdef HOUDINI_USE_LOCALE
 #	define _isxdigit(c) isxdigit(c)

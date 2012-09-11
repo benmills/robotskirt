@@ -4,3 +4,6 @@
 [submodule "v8u"]
 	path = v8u
 	url = https://github.com/jmendeth/v8u.git
+[submodule "houdini"]
+	path = houdini
+	url = https://github.com/vmg/houdini.git
