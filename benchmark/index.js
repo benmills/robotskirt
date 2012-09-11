@@ -2,7 +2,7 @@
 
 var fs = require('fs')
   , path = require('path')
-  , marked = require('marked')
+  , util = require('util')
   , dir = __dirname + '/tests';
 
 var BREAK_ON_ERROR = false;
@@ -131,53 +131,103 @@ main.bench = function(name, func) {
   console.log('%s completed in %dms.', name, Date.now() - start);
 };
 
+// Benchmark a series of target functions
+function benchBatch(targets, cb, idx) {
+  idx |= 0;
+  if (targets.length == 0) return cb(idx);
+
+  var target = targets.shift();
+  process.stdout.write(util.format('[%s] ', idx+1));
+  try {
+    main.bench(target.name, target.func);
+    idx++;
+  } catch (err) {
+    console.log('%s failed!', target.name);
+  }
+
+  //No more targets, no need to wait
+  if (targets.length == 0) return cb(idx);
+
+  //We need to wait some seconds before the next test,
+  //or the results could vary depending on the order
+  setTimeout(function() {
+    benchBatch(targets, cb, idx); //Yeah, recursivity...
+  }, 10000);
+}
+
 var bench = function() {
+  //Define all functions first, then benchmark
   var robotskirt = (function() {
     var rs = require('../build/Release/robotskirt');
     var rend = new rs.HtmlRenderer();
     var md = new rs.Markdown(rend);
     return function(text) {
-      return md.renderSync(text);
+      return md.render(text);
     };
   })();
-  main.bench('robotskirt (reuse all)', robotskirt);
 
   var robotskirt_slow = (function() {
     var rs = require('../build/Release/robotskirt');
     return function(text) {
-      return (new rs.Markdown(new rs.HtmlRenderer())).renderSync(text);
+      return (new rs.Markdown(new rs.HtmlRenderer())).render(text);
     };
   })();
-  main.bench('robotskirt (new renderer and parser)', robotskirt_slow);
 
+  var robotskirt_c = (function() {
+    var rs = require('../build/Release/robotskirt');
+    var md = rs.Markdown.std();
+    return function(text) {
+      return md.render(text);
+    };
+  })();
+
+  var robotskirt_cslow = (function() {
+    var rs = require('../build/Release/robotskirt');
+    return function(text) {
+      return rs.Markdown.std().render(text);
+    };
+  })();
+  
   var marked = require('marked');
-  main.bench('marked', marked);
 
   var discount = require('discount').parse;
-  main.bench('discount', discount);
 
-  var showdown = (function() {
-    var Showdown = require('showdown').Showdown;
-    var convert = new Showdown.converter();
-    return function(text) {
-      return convert.makeHtml(text);
-    };
-  })();
-  main.bench('showdown (reuse converter)', showdown);
+  //FIXME: the Showdown API's changed, update this!
+  //var showdown = (function() {
+  //  var Showdown = require('showdown').Showdown;
+  //  var convert = new Showdown.converter();
+  //  return function(text) {
+  //    return convert.makeHtml(text);
+  //  };
+  //})();
 
-  var showdown_slow = (function() {
-    var Showdown = require('showdown').Showdown;
-    return function(text) {
-      var convert = new Showdown.converter();
-      return convert.makeHtml(text);
-    };
-  })();
-  main.bench('showdown (new converter)', showdown_slow);
+  //var showdown_slow = (function() {
+  //  var Showdown = require('showdown').Showdown;
+  //  return function(text) {
+  //    var convert = new Showdown.converter();
+  //    return convert.makeHtml(text);
+  //  };
+  //})();
 
   // var markdownjs = require('markdown');
   // main.bench('markdown-js', function(text) {
   //   markdownjs.parse(text);
   // });
+
+
+  //Ready to benchmark!
+  benchBatch([
+    {name: 'robotskirt (reuse all)', func: robotskirt},
+    {name: 'robotskirt (convenience, reuse all)', func: robotskirt_c},
+    {name: 'robotskirt (new renderer and parser)', func: robotskirt_slow},
+    {name: 'robotskirt (convenience, new parser)', func: robotskirt_cslow},
+    {name: 'marked', func: marked},
+    {name: 'discount', func: discount}
+    //{name: 'showdown (reuse converter)', func: showdown},
+    //{name: 'showdown (new converter)', func: showdown_slow}
+  ], function(len) {
+    console.log('%s targets benchmarked successfully.', len);
+  });
 };
 
 var time = function() {
