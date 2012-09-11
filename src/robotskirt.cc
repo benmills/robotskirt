@@ -704,7 +704,7 @@ RENDFUNC_DEF(doc_footer, BUF1, void)
 class HtmlRendererWrap: public RendererWrap {
 public:
     V8_CL_WRAPPER("robotskirt::HtmlRendererWrap")
-    HtmlRendererWrap(int flags): data(new HtmlRendFuncData) {
+    HtmlRendererWrap(unsigned int flags): data(new HtmlRendFuncData) {
         //FIXME:expose options (Read-only)
         sd_callbacks cb;
         sdhtml_renderer(&cb, (html_renderopt*)data->ptr(), flags);
@@ -717,14 +717,14 @@ public:
         //Extract arguments
         unsigned int flags = 0;
         if (args.Length() >= 1) {
-            flags = CheckFlags(args[0]);
+            flags = CheckUFlags(args[0]);
         }
 
         inst = new HtmlRendererWrap(flags);
     } V8_CL_CTOR_END()
 
     V8_CL_GETTER(HtmlRendererWrap, Flags) {
-        return scope.Close(Int(((html_renderopt*)inst->data->ptr())->flags));
+        return scope.Close(Uint(((html_renderopt*)inst->data->ptr())->flags));
     } V8_GETTER_END()
     
     NODE_DEF_TYPE("HtmlRenderer") {
@@ -744,14 +744,17 @@ protected:
 // MARKDOWN CLASS DECLARATION
 ////////////////////////////////////////////////////////////////////////////////
 
+//Forward the "constructor" at the subclasses
+inline Markdown* newMarkdownWrap(RendererWrap* renderer, unsigned int extensions, size_t max_nesting);
+inline Markdown* newStdMarkdown(unsigned int extensions, unsigned int htmlflags, size_t max_nesting);
+
+//Base Markdown class, doesn't contain logic to store renderer data;
+//this is specific to subclasses
 class Markdown: public ObjectWrap {
 public:
     V8_CL_WRAPPER("robotskirt::Markdown")
-    Markdown(RendererWrap* renderer, unsigned int extensions, size_t max_nesting):
-            max_nesting_(max_nesting), extensions_(extensions) {
-        markdown = makeMarkdown(renderer, &cb, &opaque, extensions, max_nesting);
-    }
-    ~Markdown() {
+    //Here, it's important that the destructor gets declared virtual
+    virtual ~Markdown() {
         sd_markdown_free(markdown);
     }
     V8_CL_CTOR(Markdown) {
@@ -773,8 +776,24 @@ public:
             }
         }
 
-        inst = new Markdown(rend, extensions, max_nesting);
+        inst = newMarkdownWrap(rend, extensions, max_nesting);
     } V8_CL_CTOR_END()
+    static V8_CALLBACK(MakeStandard) {
+        unsigned int extensions = 0;
+        unsigned int htmlflags = 0;
+        size_t max_nesting = DEFAULT_MAX_NESTING;
+        if (args.Length()>=1) {
+            extensions = CheckUFlags(args[0]);
+            if (args.Length()>=2) {
+                htmlflags = CheckUFlags(args[1]);
+                if (args.Length()>=3) {
+                    max_nesting = Uint(args[2]);
+                }
+            }
+        }
+
+        return newStdMarkdown(extensions, htmlflags, max_nesting)->Wrapped();
+    } V8_CALLBACK_END()
 
     V8_CL_GETTER(Markdown, MaxNesting) {
         return scope.Close(Uint(inst->max_nesting_));
@@ -783,8 +802,12 @@ public:
         return scope.Close(Uint(inst->extensions_));
     } V8_GETTER_END()
 
+    static V8_S_CALLBACK(RenderSync) {
+        fprintf(stderr, "renderSync() is DEPRECATED, please use render() instead.\n");
+        return Render(args);
+    }
     //And the most important function(s)...
-    V8_CL_CALLBACK(Markdown, RenderSync) {
+    V8_CL_CALLBACK(Markdown, Render) {
         //Extract input
         CheckArguments(1, args);
         String::Utf8Value input (args[0]);
@@ -801,30 +824,67 @@ public:
         //Finish
         return scope.Close(toString(*out));
     } V8_CALLBACK_END()
-    //TODO: async version of Render(...)
 
     NODE_DEF_TYPE("Markdown") {
         V8_DEF_RPROP(Extensions, "extensions");
         V8_DEF_RPROP(MaxNesting, "maxNesting");
 
+        V8_DEF_METHOD(Render, "render");
         V8_DEF_METHOD(RenderSync, "renderSync");
+        
+        prot->GetFunction()->Set(Symbol("std"), Func(MakeStandard)->GetFunction());
 
         StoreTemplate("robotskirt::Markdown", prot);
     } NODE_DEF_TYPE_END()
 protected:
     sd_markdown* markdown;
     sd_callbacks cb;
+    size_t max_nesting_;
+    int extensions_;
+};
+
+// A markdown parser holding JS-wrapped Renderer data.
+class MarkdownWrap : public Markdown {
+public:
+    MarkdownWrap(RendererWrap* renderer, unsigned int extensions, size_t max_nesting) {
+        max_nesting_ = max_nesting;
+        extensions_ = extensions;
+        markdown = makeMarkdown(renderer, &cb, &opaque, extensions, max_nesting);
+    }
+    //FIXME: is deallocation correct?
+protected:
     RendererData opaque;
-    size_t const max_nesting_;
-    int const extensions_;
 private:
-    static sd_markdown* makeMarkdown(RendererWrap* rend,
+    static inline sd_markdown* makeMarkdown(RendererWrap* rend,
             sd_callbacks* cb, RendererData* opaque,
             unsigned int extensions, size_t max_nesting) {
         rend->makeRenderer(cb, opaque);
         return sd_markdown_new(extensions, max_nesting, cb, opaque);
     }
 };
+
+// A markdown parser holding a standard Sundown HTML renderer
+class StdMarkdown : public Markdown {
+public:
+    StdMarkdown(unsigned int extensions, unsigned int htmlflags, size_t max_nesting) {
+        max_nesting_ = max_nesting;
+        extensions_ = extensions;
+        //Create HTML renderer
+        sdhtml_renderer(&cb, &options, htmlflags);
+        //Create the Markdown parser
+        markdown = sd_markdown_new(extensions, max_nesting, &cb, &options);
+    }
+protected:
+    html_renderopt options;
+};
+
+//Now we can define the "constructors"
+inline Markdown* newMarkdownWrap(RendererWrap* renderer, unsigned int extensions, size_t max_nesting) {
+    return new MarkdownWrap(renderer, extensions, max_nesting);
+}
+inline Markdown* newStdMarkdown(unsigned int extensions, unsigned int htmlflags, size_t max_nesting) {
+    return new StdMarkdown(extensions, htmlflags, max_nesting);
+}
 
 
 
