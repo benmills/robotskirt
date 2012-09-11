@@ -14,14 +14,20 @@ def configure(conf):
 def build(bld):
   sundown = bld.new_task_gen("cc", "shlib")
   sundown.source = """
-    src/markdown.c
-    src/stack.c
-    src/buffer.c
-    src/html.c
     src/autolink.c
+    src/buffer.c
     src/houdini_href_e.c
     src/houdini_html_e.c
+    src/houdini_html_u.c
+    src/houdini_js_e.c
+    src/houdini_js_u.c
+    src/houdini_uri_e.c
+    src/houdini_uri_u.c
+    src/houdini_xml_e.c
+    src/html.c
     src/html_smartypants.c
+    src/markdown.c
+    src/stack.c
   """
   sundown.includes = "src/"
   sundown.name = "sundown"
