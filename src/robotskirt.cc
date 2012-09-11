@@ -999,7 +999,7 @@ NODE_DEF_MAIN() {
     Version::init(target);
     Local<Object> versions = Obj();
     versions->Set(Symbol("sundown"), SundownVersion());
-    versions->Set(Symbol("robotskirt"), (new Version(2,3,2))->Wrapped());
+    versions->Set(Symbol("robotskirt"), (new Version(2,4,0))->Wrapped());
     target->Set(Symbol("versions"), versions);
 
     //Extension constants
