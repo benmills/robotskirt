@@ -6,8 +6,9 @@
 #include <memory>
 
 extern "C" {
-  #include"markdown.h"
-  #include"html.h"
+  #include "markdown.h"
+  #include "html.h"
+  #include "houdini.h"
 }
 
 using namespace std;
@@ -118,7 +119,7 @@ enum CppSignature {
 
 class BufWrap {
 public:
-    BufWrap(buf* buf): buf_(buf) {}
+    explicit BufWrap(buf* buf): buf_(buf) {}
     ~BufWrap() {
         bufrelease(buf_);
     }
@@ -973,7 +974,7 @@ inline Markdown* newStdMarkdown(unsigned int extensions, unsigned int htmlflags,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// OTHER UTILITIES (version stuff, etc.)
+// OTHER UTILITIES (version stuff, complementary functionality, etc.)
 ////////////////////////////////////////////////////////////////////////////////
 
 Local<Object> SundownVersion() {
@@ -981,6 +982,75 @@ Local<Object> SundownVersion() {
                         SUNDOWN_VER_MINOR,
                         SUNDOWN_VER_REVISION))->Wrapped();
 }
+
+//SUBMODULE: Houdini, the escapist (a part comes bundled with Sundown)
+//NOTE: it also UNescapes, but that breaks the joke in the name so nevermind.
+namespace houdini {
+  #define HOUDINI_OUTPUT_UNIT OUTPUT_UNIT
+  #define HOUDINI_DEFAULT_TO_SECURE true
+
+  #define HOUDINI_STANDARD_WRAPPER(IDENTIFIER, FUNCTION)                       \
+    V8_S_CALLBACK(IDENTIFIER) {                                                \
+      HandleScope scope;                                                       \
+      if (args.Length()<1) return ThrowException(RangeErr("One argument needed."));\
+      String::Utf8Value input (args[0]);                                       \
+                                                                               \
+      BufWrap out (bufnew(HOUDINI_OUTPUT_UNIT));                               \
+      houdini_##FUNCTION(*out, (const unsigned char*)(*input), input.length());\
+      return scope.Close(toString(*out));                                      \
+    }
+
+  //JS [un]escaping
+  HOUDINI_STANDARD_WRAPPER(EscapeJs, escape_js)
+  HOUDINI_STANDARD_WRAPPER(UnescapeJs, unescape_js)
+  
+  //URL [un]escaping
+  HOUDINI_STANDARD_WRAPPER(EscapeUrl, escape_url)
+  HOUDINI_STANDARD_WRAPPER(UnescapeUrl, unescape_url)
+
+  //URI [un]escaping
+  HOUDINI_STANDARD_WRAPPER(EscapeUri, escape_uri)
+  HOUDINI_STANDARD_WRAPPER(UnescapeUri, unescape_uri)
+
+  //HTML [un]escaping
+  V8_S_CALLBACK(EscapeHtml) {
+    HandleScope scope;
+    if (args.Length()<1) return ThrowException(RangeErr("One argument needed."));
+    String::Utf8Value input (args[0]);
+    bool secure = HOUDINI_DEFAULT_TO_SECURE;
+    if (args.Length()>=2) secure = Bool(args[1]);
+
+    BufWrap out (bufnew(HOUDINI_OUTPUT_UNIT));
+    houdini_escape_html0(*out, (const unsigned char*)(*input), input.length(), secure);
+    return scope.Close(toString(*out));
+  }
+  HOUDINI_STANDARD_WRAPPER(UnescapeHtml, unescape_html)
+  
+  //Additional HREF escaping
+  HOUDINI_STANDARD_WRAPPER(EscapeHref, escape_href)
+  
+  //Additional XML escaping
+  HOUDINI_STANDARD_WRAPPER(EscapeXml, escape_xml)
+
+  //The initializer
+  NODE_DEF(init) {
+    SetMethod(target, "escapeJS", EscapeJs);
+    SetMethod(target, "unescapeJS", UnescapeJs);
+    
+    SetMethod(target, "escapeURL", EscapeUrl);
+    SetMethod(target, "unescapeURL", UnescapeUrl);
+    
+    SetMethod(target, "escapeURI", EscapeUri);
+    SetMethod(target, "unescapeURI", UnescapeUri);
+    
+    SetMethod(target, "escapeHTML", EscapeHtml);
+    SetMethod(target, "unescapeHTML", UnescapeHtml);
+    
+    SetMethod(target, "escapeHREF", EscapeHref);
+    
+    SetMethod(target, "escapeXML", EscapeXml);
+  }
+};
 
 
 
@@ -1023,6 +1093,11 @@ NODE_DEF_MAIN() {
     target->Set(Symbol("HTML_HARD_WRAP"), Int(HTML_HARD_WRAP));
     target->Set(Symbol("HTML_USE_XHTML"), Int(HTML_USE_XHTML));
     target->Set(Symbol("HTML_ESCAPE"), Int(HTML_ESCAPE));
+
+    //SUBMODULE: Houdini, the escapist
+    Local<Object> houdiniL = Obj();
+    houdini::init(houdiniL);
+    target->Set(Symbol("houdini"), houdiniL);
 } NODE_DEF_MAIN_END(robotskirt)
 
 }
