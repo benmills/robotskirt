@@ -29,11 +29,10 @@ var input = new StringStream();
 process.stdin.pipe(input);
 input.on('end', function () {
   //Make the renderer and parser
-  var renderer = new rs.HtmlRenderer();
-  var parser = new rs.Markdown(renderer);
+  var parser = rs.Markdown.std();
 
   //Parse the data
-  var output = parser.renderSync(input.buffer);
+  var output = parser.render(input.buffer.toString());
   process.stdout.write(output);
 });
 

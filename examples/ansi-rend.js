@@ -103,6 +103,6 @@ function AnsiRenderer(opts) {
   var rend = AnsiRenderer()
   var md = new rs.Markdown(rend, ~0)
   
-  process.stdout.write(md.renderSync(input));
+  process.stdout.write(md.render(input));
 });
 process.stdin.resume();
