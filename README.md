@@ -15,6 +15,9 @@ Robotskirt is distributed under the **MIT license**, see `LICENSE`.
 Thanks to Sundown, Robotskirt is able to render markdown many times faster than other Markdown libraries.  
 With v2, efforts have been put to make it even lighter.
 
+Sundown is well known for its **security**, **speed** and **flexibility**.  
+Robotskirt benefits from these features and tries to make the wrapping layer as thin as possible.
+
 Robotskirt includes a small script to benchmark it against other popular markdown libraries.  
 It runs the official Markdown test suite 1000 times with each item.
 
@@ -23,7 +26,7 @@ Node 0.8.8 (currently the latest stable version):
 
 ```bash
 $ node benchmark --bench
-[1] robotskirt (reuse all) completed in 1350ms.
+[1] robotskirt (reuse all) completed in 1354ms.
 [2] robotskirt (convenience, reuse all) completed in 1353ms.
 [3] robotskirt (new renderer and parser) completed in 3816ms.
 [4] robotskirt (convenience, new parser) completed in 1534ms.
@@ -176,3 +179,42 @@ and **you don't have access to the HTML renderer used**.
 ## Examples
 
 TODO
+
+## Other utilities
+
+Robotskirt includes some useful utilities. Code speaks by itself:
+
+##### [Houdini](https://github.com/vmg/houdini), the escapist
+
+``` javascript
+> var rs = require('robotskirt')
+> rs.houdini.escapeHTML('<b>Some code to escape.</b> <a title="Click me!">Me & you.</a>')
+'&lt;b&gt;Some code to escape.&lt;&#47;b&gt; &lt;a title=&quot;Click me!&quot;&gt;Me &amp; you.&lt;&#47;a&gt;'
+> rs.houdini.unescapeURL('Include+5%25+me%2Bin+a-query%3F+W%C3%ADth%C3%99TF%21')
+'Include 5% me in a-query? WíthÙTF!'
+```
+
+##### SmartyPants
+
+```javascript
+//Often used in conjunction with Markdown
+//COMING SOON!
+```
+
+
+##### Version stuff
+
+``` javascript
+> rs.versions.sundown
+<Version 1.16.0>
+> rs.versions.robotskirt.toString() //String formatted version
+'2.5.1'
+> console.log('Sundown is at %s. Robotskirt is at %s',
+... rs.versions.sundown, rs.versions.robotskirt);
+Sundown is at 1.16.0. Robotskirt is at 2.5.1.
+> rs.versions.sundown.minor
+16
+> rs.versions.robotskirt instanceof rs.Version
+true
+```
+
