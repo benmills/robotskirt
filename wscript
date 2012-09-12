@@ -34,7 +34,7 @@ def build(bld):
   sundown.target = "sundown"
 
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
-  obj.cxxflags = ["-g", "-D_FILE_OFFSET_BITS=64", "-D_LARGEFILE_SOURCE", "-Wall", "-std=c++0x"]
+  obj.cxxflags = ["-g", "-D_FILE_OFFSET_BITS=64", "-D_LARGEFILE_SOURCE", "-Wall"]
   obj.target = 'robotskirt'
   obj.add_objects = "sundown"
   obj.source = 'src/robotskirt.cc'

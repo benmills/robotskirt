@@ -3,7 +3,6 @@
 #include <node_buffer.h>
 
 #include <string>
-#include <memory>
 
 extern "C" {
   #include "markdown.h"
@@ -155,10 +154,10 @@ inline Handle<Value> toString(const buf* buf) {
     if (!buf) return Null();
     return String::New(reinterpret_cast<const char*>(buf->data), buf->size);
 }
-inline void makeBuf(unique_ptr<buf>& target, unique_ptr<String::Utf8Value>& txt, Handle<Value> value) {
+inline void makeBuf(buf*& target, String::Utf8Value*& txt, Local<Value> value) {
   if (value->IsUndefined() || value->IsNull()) return;
-  txt.reset(new String::Utf8Value(value));
-  target.reset(new buf);
+  txt = new String::Utf8Value(value);
+  target = new buf;
   target->data = (uint8_t*)(**txt);
   target->size = target->asize = txt->length();
   target->unit = 0;
@@ -256,13 +255,14 @@ WRAPPERS(BUF1)
 #define BUF2_WRAPPER(RET)                                                      \
     Handle<Value> BUF2_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
         if(args.Length()<1) return ThrowException(RangeErr("Not enough arguments."));\
-        unique_ptr<String::Utf8Value> texts;                                   \
-        unique_ptr<buf> text;                                                  \
+        String::Utf8Value* texts = NULL;                                       \
+        buf* text = NULL;                                                      \
         makeBuf(text, texts, args[0]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, void*))inst->getFunction())\
-                (*ob, text.get(),  inst->getOpaque());                         \
+                (*ob, text,  inst->getOpaque());                               \
+        if (texts != NULL) { delete texts; delete text; }                      \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -271,13 +271,14 @@ WRAPPERS(BUF2)
 #define BUF2INT_WRAPPER(RET)                                                   \
     Handle<Value> BUF2INT_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
         if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
-        unique_ptr<String::Utf8Value> texts;                                   \
-        unique_ptr<buf> text;                                                  \
+        String::Utf8Value* texts = NULL;                                       \
+        buf* text = NULL;                                                      \
         makeBuf(text, texts, args[0]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, int, void*))inst->getFunction())\
-                (*ob, text.get(), Int(args[1]),  inst->getOpaque());           \
+                (*ob, text, Int(args[1]),  inst->getOpaque());                 \
+        if (texts != NULL) { delete texts; delete text; }                      \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -286,17 +287,19 @@ WRAPPERS(BUF2INT)
 #define BUF3_WRAPPER(RET)                                                      \
     Handle<Value> BUF3_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
         if(args.Length()<2) return ThrowException(RangeErr("Not enough arguments."));\
-        unique_ptr<String::Utf8Value> texts;                                   \
-        unique_ptr<buf> text;                                                  \
+        String::Utf8Value* texts = NULL;                                       \
+        buf* text = NULL;                                                      \
         makeBuf(text, texts, args[0]);                                         \
                                                                                \
-        unique_ptr<String::Utf8Value> langs;                                   \
-        unique_ptr<buf> lang;                                                  \
+        String::Utf8Value* langs = NULL;                                       \
+        buf* lang = NULL;                                                      \
         makeBuf(lang, langs, args[1]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, void*))inst->getFunction())\
-                (*ob, text.get(), lang.get(),  inst->getOpaque());             \
+                (*ob, text, lang,  inst->getOpaque());                         \
+        if (texts != NULL) { delete texts; delete text; }                      \
+        if (langs != NULL) { delete langs; delete lang; }                      \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
@@ -305,21 +308,24 @@ WRAPPERS(BUF3)
 #define BUF4_WRAPPER(RET)                                                      \
     Handle<Value> BUF4_wrapper_##RET(FunctionData* inst, const Arguments& args) {\
         if(args.Length()<3) return ThrowException(RangeErr("Not enough arguments."));\
-        unique_ptr<String::Utf8Value> links;                                   \
-        unique_ptr<buf> link;                                                  \
+        String::Utf8Value* links = NULL;                                       \
+        buf* link = NULL;                                                      \
         makeBuf(link, links, args[0]);                                         \
                                                                                \
-        unique_ptr<String::Utf8Value> titles;                                  \
-        unique_ptr<buf> title;                                                 \
+        String::Utf8Value* titles = NULL;                                      \
+        buf* title = NULL;                                                     \
         makeBuf(title, titles, args[1]);                                       \
                                                                                \
-        unique_ptr<String::Utf8Value> conts;                                   \
-        unique_ptr<buf> cont;                                                  \
+        String::Utf8Value* conts = NULL;                                       \
+        buf* cont = NULL;                                                      \
         makeBuf(cont, conts, args[2]);                                         \
                                                                                \
         BufWrap ob (bufnew(W_OUTPUT_UNIT));                                    \
         WRAPPER_CALL_##RET() ((RET(*)(buf*, const buf*, const buf*, const buf*, void*))inst->getFunction())\
-                (*ob, link.get(), title.get(), cont.get(),  inst->getOpaque());\
+                (*ob, link, title, cont,  inst->getOpaque());                  \
+        if (links != NULL) { delete links; delete link; }                      \
+        if (titles != NULL) { delete titles; delete title; }                   \
+        if (conts != NULL) { delete conts; delete cont; }                      \
         WRAPPER_POST_CALL_##RET()                                              \
         return toString(*ob);                                                  \
     }
