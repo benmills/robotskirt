@@ -1040,21 +1040,21 @@ namespace houdini {
 
   //The initializer
   NODE_DEF(init) {
-    SetMethod(target, "escapeJS", EscapeJs);
-    SetMethod(target, "unescapeJS", UnescapeJs);
-    
-    SetMethod(target, "escapeURL", EscapeUrl);
-    SetMethod(target, "unescapeURL", UnescapeUrl);
-    
-    SetMethod(target, "escapeURI", EscapeUri);
-    SetMethod(target, "unescapeURI", UnescapeUri);
-    
-    SetMethod(target, "escapeHTML", EscapeHtml);
-    SetMethod(target, "unescapeHTML", UnescapeHtml);
-    
-    SetMethod(target, "escapeHREF", EscapeHref);
-    
-    SetMethod(target, "escapeXML", EscapeXml);
+    target->Set(Symbol("escapeJS"), Func(EscapeJs)->GetFunction());
+    target->Set(Symbol("unescapeJS"), Func(UnescapeJs)->GetFunction());
+
+    target->Set(Symbol("escapeURL"), Func(EscapeUrl)->GetFunction());
+    target->Set(Symbol("unescapeURL"), Func(UnescapeUrl)->GetFunction());
+
+    target->Set(Symbol("escapeURI"), Func(EscapeUri)->GetFunction());
+    target->Set(Symbol("unescapeURI"), Func(UnescapeUri)->GetFunction());
+
+    target->Set(Symbol("escapeHTML"), Func(EscapeHtml)->GetFunction());
+    target->Set(Symbol("unescapeHTML"), Func(UnescapeHtml)->GetFunction());
+
+    target->Set(Symbol("escapeHREF"), Func(EscapeHref)->GetFunction());
+
+    target->Set(Symbol("escapeXML"), Func(EscapeXml)->GetFunction());
   }
 };
 
