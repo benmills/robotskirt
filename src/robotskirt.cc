@@ -3,6 +3,7 @@
 #include <node_buffer.h>
 
 #include <string>
+#include <cstring>
 
 extern "C" {
   #include "markdown.h"
