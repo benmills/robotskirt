@@ -1059,6 +1059,25 @@ namespace houdini {
   }
 };
 
+//SMARTYPANTS (Sundown implementation)
+#define SMARTYPANTS_OUTPUT_UNIT OUTPUT_UNIT
+V8_CALLBACK(SmartypantsHtml) {
+  //Extract input
+  CheckArguments(1, args);
+  String::Utf8Value input (args[0]);
+  
+  //Prepare
+  BufWrap out (bufnew(SMARTYPANTS_OUTPUT_UNIT));
+  
+  //GO!!
+  sdhtml_smartypants(*out,
+                     reinterpret_cast<const unsigned char*>(*input),
+                     input.length());
+  
+  //Finish
+  return scope.Close(toString(*out));
+} V8_CALLBACK_END()
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1105,6 +1124,9 @@ NODE_DEF_MAIN() {
     Local<Object> houdiniL = Obj();
     houdini::init(houdiniL);
     target->Set(Symbol("houdini"), houdiniL);
+    
+    //SMARTYPANTS
+    target->Set(Symbol("smartypantsHtml"), Func(SmartypantsHtml)->GetFunction());
 } NODE_DEF_MAIN_END(robotskirt)
 
 }
