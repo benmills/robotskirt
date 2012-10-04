@@ -5,7 +5,7 @@ library.
 
 It was inspired by the Redcarpet gem [released by GitHub](https://github.com/blog/832-rolling-out-the-redcarpet) (the bindings to [Ruby](http://www.ruby-lang.org)).  
 With the arrival of version 2 after much work, Robotskirt now mirrors every feature of Redcarpet, see below.  
-It even has additional features!
+It even has [additional features](#other-utilities)!
 
 Full documentation can be found under the `doc` folder.  
 Robotskirt is distributed under the **MIT license**, see `LICENSE`.
@@ -206,6 +206,12 @@ It makes "smart" punctuation. See more on [its homepage](http://daringfireball.n
 
 Sundown implements SmartyPants with the same
 speed and security as usual.
+
+##### Sundown's Autolink-er
+
+```javascript
+//COMING SOON!
+```
 
 ##### Version stuff
 
