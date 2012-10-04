@@ -197,8 +197,11 @@ Robotskirt includes some useful utilities. Code speaks by itself:
 ##### SmartyPants
 
 ```javascript
-//Often used in conjunction with Markdown
-//COMING SOON!
+//Often used in conjunction with Markdown.
+//It makes "smart" punctuation. Sundown implements
+//SmartyPants with the same speed and security as Markdown.
+> rs.smartypantsHtml('And I said ---to him--- "no worries".');
+'And I said &mdash;to him&mdash; &ldquo;no worries&rdquo;.'
 ```
 
 
