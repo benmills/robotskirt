@@ -194,16 +194,18 @@ Robotskirt includes some useful utilities. Code speaks by itself:
 'Include 5% me in a-query? WíthÙTF!'
 ```
 
-##### SmartyPants
+##### [SmartyPants](http://daringfireball.net/projects/smartypants)
+
+Often used in conjunction with Markdown.  
+It makes "smart" punctuation. See more on [its homepage](http://daringfireball.net/projects/smartypants).
 
 ```javascript
-//Often used in conjunction with Markdown.
-//It makes "smart" punctuation. Sundown implements
-//SmartyPants with the same speed and security as Markdown.
-> rs.smartypantsHtml('And I said ---to him--- "no worries".');
-'And I said &mdash;to him&mdash; &ldquo;no worries&rdquo;.'
+> rs.smartypantsHtml('And I said ---to him--- "no worries"...');
+'And I said &mdash;to him&mdash; &ldquo;no worries&rdquo;&hellip;'
 ```
 
+Sundown implements SmartyPants with the same
+speed and security as usual.
 
 ##### Version stuff
 
