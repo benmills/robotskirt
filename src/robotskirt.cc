@@ -345,7 +345,7 @@ WRAPPERS(BUF4)
         HandleScope scope;                                                     \
                                                                                \
         /*Convert arguments*/                                                  \
-        Handle<Value> args [0];                                                \
+        Handle<Value> *args;                                                   \
                                                                                \
         /*Call it!*/                                                           \
         TryCatch trycatch;                                                     \
