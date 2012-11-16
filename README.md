@@ -47,8 +47,7 @@ npm install robotskirt
 **Important:** you *don't need* to have Sundown installed: Robotskirt comes bundled  
 with a specific Sundown version. Just install Robotskirt as any other module.
 
-Robotskirt uses `node-waf` to compile
-(although we'll switch to [Node-GYP](https://github.com/TooTallNate/node-gyp) soon).
+Starting with `v2.7`, Robotskirt uses the preferred [Node-GYP](https://github.com/TooTallNate/node-gyp) to compile.
 
 ## Getting started
 
