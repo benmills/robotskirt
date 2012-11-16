@@ -19,7 +19,7 @@ using namespace v8u;
 //using namespace v8u::Version
 
 namespace robotskirt {
-#define ROBOTSKIRT_VERSION 2,7,0  //comma-separated
+#define ROBOTSKIRT_VERSION 2,7,1  //comma-separated
 
 // Constants taken from the official Sundown executable 
 #define OUTPUT_UNIT 64
