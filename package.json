@@ -12,9 +12,9 @@
                   , "Xavier Mendez <jmendeth@gmail.com>"
                   , "Farrin Reid <blakmatrix@gmail.com>"
                   , "Jeremy Kahn <jeremyckahn@gmail.com>"
-                  , "lhagan <luke@lukehagan.com>"
+                  , "Luke Hagan <luke@lukehagan.com>"
                   , "Ryan Graham <r.m.graham@gmail.com>"
-                  , "tbranyen <tim@tabdeveloper.com>"
+                  , "Tim Branyen <tim@tabdeveloper.com>"
                   ]
 
 , "main": "./build/Release/robotskirt"
