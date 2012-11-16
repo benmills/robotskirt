@@ -1,9 +1,6 @@
 {
-  'target_defaults': {
-    'cflags!': [ '-fno-exceptions' ],
-    'cflags_cc!': [ '-fno-exceptions' ]
-  },
   'targets': [
+
     {
       'target_name': 'sundown',
       'type': 'static_library',
@@ -25,15 +22,30 @@
         'src/stack.c',
       ]
     },
+
     {
       'target_name': 'robotskirt',
       'sources': ['src/robotskirt.cc'],
+      'dependencies': ['sundown'],
+
+      # Flags and defines
       'cflags': ['-Wall'],
       'defines': [
         '_FILE_OFFSET_BITS=64',
         '_LARGEFILE_SOURCE'
       ],
-      'dependencies': ['sundown']
+
+      # Enable exceptions
+      'cflags!': [ '-fno-exceptions' ],
+      'cflags_cc!': [ '-fno-exceptions' ],
+      'conditions': [
+        ['OS=="mac"', {
+          'xcode_settings': {
+            'GCC_ENABLE_CPP_EXCEPTIONS': 'YES'
+          }
+        }]
+      ]
     }
+
   ]
 }
