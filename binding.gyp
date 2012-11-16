@@ -4,7 +4,7 @@
     {
       'target_name': 'sundown',
       'type': 'static_library',
-      'include_dirs': ['src/'],
+      'include_dirs': ['src'],
       'sources': [
         'src/autolink.c',
         'src/buffer.c',
@@ -30,10 +30,6 @@
 
       # Flags and defines
       'cflags': ['-Wall'],
-      'defines': [
-        '_FILE_OFFSET_BITS=64',
-        '_LARGEFILE_SOURCE'
-      ],
 
       # Enable exceptions
       'cflags!': [ '-fno-exceptions' ],
