@@ -1,4 +1,8 @@
 {
+  'target_defaults': {
+    'cflags!': [ '-fno-exceptions' ],
+    'cflags_cc!': [ '-fno-exceptions' ]
+  },
   'targets': [
     {
       'target_name': 'sundown',
