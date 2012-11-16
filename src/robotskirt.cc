@@ -19,6 +19,7 @@ using namespace v8u;
 //using namespace v8u::Version
 
 namespace robotskirt {
+#define ROBOTSKIRT_VERSION 2,6,1  //comma-separated
 
 // Constants taken from the official Sundown executable 
 #define OUTPUT_UNIT 64
@@ -1095,7 +1096,7 @@ NODE_DEF_MAIN() {
     Version::init(target);
     Local<Object> versions = Obj();
     versions->Set(Symbol("sundown"), SundownVersion());
-    versions->Set(Symbol("robotskirt"), (new Version(2,6,1))->Wrapped());
+    versions->Set(Symbol("robotskirt"), (new Version(ROBOTSKIRT_VERSION))->Wrapped());
     target->Set(Symbol("versions"), versions);
 
     //Extension constants
