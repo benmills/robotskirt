@@ -15,6 +15,7 @@
                   , "Luke Hagan <luke@lukehagan.com>"
                   , "Ryan Graham <r.m.graham@gmail.com>"
                   , "Tim Branyen <tim@tabdeveloper.com>"
+                  , "John Gozde <john@gozde.ca>"
                   ]
 
 , "main": "./build/Release/robotskirt"
