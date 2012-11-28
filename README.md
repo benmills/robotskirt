@@ -181,17 +181,7 @@ TODO
 
 ## Other utilities
 
-Robotskirt includes some useful utilities. Code speaks by itself:
-
-##### [Houdini](https://github.com/vmg/houdini), the escapist
-
-``` javascript
-> var rs = require('robotskirt')
-> rs.houdini.escapeHTML('<b>Some code to escape.</b> <a title="Click me!">Me & you.</a>')
-'&lt;b&gt;Some code to escape.&lt;&#47;b&gt; &lt;a title=&quot;Click me!&quot;&gt;Me &amp; you.&lt;&#47;a&gt;'
-> rs.houdini.unescapeURL('Include+5%25+me%2Bin+a-query%3F+W%C3%ADth%C3%99TF%21')
-'Include 5% me in a-query? WíthÙTF!'
-```
+Sundown (and Robotskirt) include some useful utilities. Code speaks by itself:
 
 ##### [SmartyPants](http://daringfireball.net/projects/smartypants)
 
@@ -206,6 +196,16 @@ It makes "smart" punctuation. See more on [its homepage](http://daringfireball.n
 Sundown implements SmartyPants with the same
 speed and security as usual.
 
+##### [Houdini](https://github.com/vmg/houdini), the escapist
+
+``` javascript
+> var rs = require('robotskirt')
+> rs.houdini.escapeHTML('<b>Some code to escape.</b> <a title="Click me!">Me & you.</a>')
+'&lt;b&gt;Some code to escape.&lt;&#47;b&gt; &lt;a title=&quot;Click me!&quot;&gt;Me &amp; you.&lt;&#47;a&gt;'
+> rs.houdini.unescapeURL('Include+5%25+me%2Bin+a-query%3F+W%C3%ADth%C3%99TF%21')
+'Include 5% me in a-query? WíthÙTF!'
+```
+
 ##### Sundown's Autolink-er
 
 ```javascript
@@ -218,10 +218,10 @@ speed and security as usual.
 > rs.versions.sundown
 <Version 1.16.0>
 > rs.versions.robotskirt.toString() //String formatted version
-'2.5.1'
+'2.7.1'
 > console.log('Sundown is at %s. Robotskirt is at %s',
 ... rs.versions.sundown, rs.versions.robotskirt);
-Sundown is at 1.16.0. Robotskirt is at 2.5.1.
+Sundown is at 1.16.0. Robotskirt is at 2.7.1.
 > rs.versions.sundown.minor
 16
 > rs.versions.robotskirt instanceof rs.Version
