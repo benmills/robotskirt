@@ -81,7 +81,7 @@ parser.render('Hey, *this* is `code` with ÚŦF châracters!')
 // '<p>Hey, <em>this</em> is <code>code</code> with ÚŦF châracters!</p>\n'
 ```
 
-**Always reuse yor parsers/renderers!** As you can see in the [benchmark](#performance),  
+**Always reuse your parsers/renderers!** As you can see in the [benchmark](#performance),  
 making and using the same pair to render everything saves a _lot_ of time.  
 If you can't reuse them (for example, because the flags are supplied by the user),  
 consider using [the convenience way](#the-convenience-way).
@@ -121,15 +121,21 @@ You can see the full list of HTML flags in the docs.
 Sundown is fully UTF-8 aware, both when handling and rendering.  
 Robotskirt will take care of the encoding and decoding tasks for you.
 
-### Custom renderers!
+For more info about how UTF characters are treated, see [the corresponding
+section](https://github.com/vmg/sundown#unicode-character-handling) in Sundown's README.
+
+## Custom renderers!
 
 A renderer is just a set of functions.  
 Each time the parser finds a piece of Markdown it'll call the appropiate function in the renderer.  
 If the function is not set (`undefined`), the Markdown will be skipped or copied untouched.
 
+Keep in mind, however, that you can't do asynchronous work in these functions.  
+This is because of Sundown's design.
+
 Some use cases of custom renderers:
 
-#### Highlighting code blocks
+### Highlighting code blocks
 
 ```javascript
 var renderer = new rs.HtmlRenderer();
@@ -138,13 +144,13 @@ renderer.blockcode = function (code, language) {
     //No language was provided, don't highlight
     return '<pre>' + escapeHtml(code) + '</pre>';
   }
-  return pygments.highlight(code, {"lang": language, "indent": 2});
+  return amazinglib.highlight(code, {"lang": language, "indent": 2});
 };
 ```
 
 You can see the full list of renderer functions in the docs.
 
-#### Renderer from scratch
+### Renderer from scratch
 
 If you don't feel comfortable extending the `HtmlRenderer` class,  
 you can build a renderer from scratch by extending the base class: `Renderer`.  
