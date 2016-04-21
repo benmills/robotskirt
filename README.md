@@ -77,7 +77,7 @@ var parser = new rs.Markdown(renderer);
 That's it! You can now start rendering your markdown:
 
 ```javascript
-parser.render('Hey, *this* is `code` with ÚŦF châracters!')
+parser.render('Hey, *this* is `code` with ÚŦF châracters!');
 // '<p>Hey, <em>this</em> is <code>code</code> with ÚŦF châracters!</p>\n'
 ```
 
